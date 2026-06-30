@@ -1,6 +1,6 @@
 // Tests: Ring buffer push/pop, overflow, bulk operations
-#include "../ipc/shm_ring_buffer.h"
-#include "../ipc/shm_protocol.h"
+#include "../src/ipc/shm_ring_buffer.h"
+#include "../src/ipc/shm_protocol.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>

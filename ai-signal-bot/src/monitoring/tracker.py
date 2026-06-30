@@ -71,7 +71,9 @@ class SignalLogger:
 
     def __init__(self, path: str = "logs/signals.csv"):
         self.path = path
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        dirname = os.path.dirname(path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         if not os.path.exists(path):
             with open(path, "w", encoding="utf-8") as f:
                 f.write("timestamp,symbol,direction,confidence,strategy,entry,sl,tp,rr,reason\n")
@@ -97,7 +99,9 @@ class TradeLogger:
 
     def __init__(self, path: str = "logs/trades.csv"):
         self.path = path
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        dirname = os.path.dirname(path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         if not os.path.exists(path):
             with open(path, "w", encoding="utf-8") as f:
                 f.write("timestamp,symbol,exchange,side,qty,entry,exit,pnl,fee,status\n")

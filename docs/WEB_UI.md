@@ -1,6 +1,6 @@
 # Web UI Dashboard
 
-Browser-based trading dashboard for the crypto trading simulator. Binance-inspired dark/light theme with TradingView-style candle charts, **201+ React components**, **191+ registered panels** across 7 categories, and **75+ advanced mathematical model components**.
+Browser-based trading dashboard for the crypto trading simulator. Binance-inspired dark/light theme with TradingView-style candle charts, **201+ React components**, **191+ registered panels** across 7 categories, **75+ advanced mathematical model components**, **PWA support**, **WCAG AA accessibility**, and **Vitest test suite**.
 
 ## Features
 
@@ -248,28 +248,80 @@ All variables are optional — defaults use localhost. For Docker, ports are map
 | lightweight-charts 4 | TradingView candle charts |
 | lucide-react | Icons |
 | Vitest | Unit testing framework |
+| @testing-library/react | React component testing utilities |
+| @testing-library/jest-dom | Custom DOM matchers for Jest/Vitest |
+| jsdom | DOM environment for tests |
+| vite-plugin-pwa | PWA support with Workbox caching |
+| vite-bundle-visualizer | Bundle size visualization |
 | ESLint | Linting with React plugin |
 
 ## Performance Optimizations
 
 | Optimization | Implementation |
 |-------------|----------------|
+| React.lazy code splitting | All 191+ panels lazy-loaded with `React.lazy()` + Suspense fallbacks |
+| ChunkRetryBoundary | Automatic retry on chunk load failure (3 retries with exponential backoff) |
+| Preload-on-hover | Hovering a category preloads all panels in that category |
 | List Virtualization | `VirtualList.jsx` — generic windowed list renderer with overscan, applied to FillsPanel and SignalFeed |
 | Error Boundaries | `PanelErrorBoundary` — class component with retry button, wraps every panel |
-| Suspense | React.Suspense wrapper in `PanelContainer.jsx` for future lazy loading |
-| React.lazy ready | Suspense in place, ready for `React.lazy()` import conversion |
+| Suspense | React.Suspense wrapper in `PanelContainer.jsx` for lazy-loaded panels |
 | Panel isolation | ErrorBoundary + Suspense per panel (triple protection: error catch + loading state + graceful fallback) |
+| Web Worker | `compute.worker.js` — heavy indicator calculations offloaded to background thread |
+| Manual chunks | Vendor code split in `vite.config.js`: `react-vendor`, `charts-vendor`, `icons-vendor` |
+| Performance hooks | `useDebouncedValue`, `useThrottledCallback`, `useBatchedUpdates`, `useIntersectionObserver` |
 | Connection resilience | Exponential backoff (1s -> 2s -> 4s -> 8s -> 16s -> 30s cap) with auto-reconnect |
 | localStorage persistence | Panel visibility, theme, trade journal — survives page reloads |
+
+## PWA (Progressive Web App)
+
+The Web UI is a fully installable PWA powered by `vite-plugin-pwa` with Workbox caching:
+
+| Feature | Implementation |
+|---------|----------------|
+| Installable | Browser "Install App" prompt, standalone display mode |
+| Offline-capable | Workbox precaches all `js, css, html, svg, png, woff2` assets |
+| Auto-update | `registerType: 'autoUpdate'` — service worker updates automatically |
+| Manifest | App name, icons (192px + 512px + maskable), theme color, landscape orientation |
+| Runtime caching | Google Fonts cached with CacheFirst strategy (1 year expiry) |
+| Build | `npm run build` generates service worker + manifest |
+
+## Accessibility (WCAG AA)
+
+| Feature | Implementation |
+|---------|----------------|
+| ARIA roles | Semantic roles on interactive elements |
+| Keyboard navigation | Full keyboard support, 1/2/3 exchange, Q/W/E symbol, Space pause, ? help |
+| Skip-to-content | Skip link for screen reader users |
+| Focus-visible | Visible focus rings on all interactive elements |
+| Reduced-motion | `prefers-reduced-motion` media query support |
+| aria-pressed | Toggle buttons announce pressed state |
+| aria-live | Connection status changes announced to screen readers |
 
 ## Testing
 
 ```bash
 cd web-ui
-npm test          # Run Vitest tests
-npm run lint      # Run ESLint
-npm run build     # Production build verification
+npm test              # Run Vitest tests (watch mode)
+npm run test:coverage  # Run tests with coverage report
+npm run test:ui        # Vitest UI mode
+npm run lint           # Run ESLint
+npm run build          # Production build verification
+npm run analyze        # Bundle visualization (vite-bundle-visualizer)
 ```
+
+### Test Files (9 files, 60+ tests)
+
+| Test File | Coverage |
+|-----------|----------|
+| `indicators.test.js` | EMA, RSI, SMA, MACD, BB, ATR, ADX, VWAP, OBV, MFI, Williams %R, Stochastic, CCI, AO, SAR |
+| `utils.test.js` | Number/price formatting helpers |
+| `garch.test.js` | GARCH(1,1) volatility model |
+| `kalman.test.js` | 1D/2D Kalman filter |
+| `hmm.test.js` | Hidden Markov Model (Baum-Welch, Viterbi) |
+| `cointegration.test.js` | Engle-Granger cointegration, ADF test |
+| `kmeans.test.js` | K-Means++ clustering, silhouette score |
+| `registry.test.js` | Panel registry integrity, category counts |
+| `virtualList.test.js` | VirtualList windowed rendering |
 
 CI/CD runs JS lint + test as a dedicated job in GitHub Actions.
 

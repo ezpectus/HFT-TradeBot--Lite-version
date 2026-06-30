@@ -21,6 +21,31 @@ docker-compose up
 docker-compose logs -f ai-signal-bot
 ```
 
+## Quick Start (No Docker — Windows)
+
+```bat
+REM 1. Install all dependencies (Python + C++ + Node.js)
+install-deps.bat
+REM or: no-docker.bat install
+
+REM 2. Start all 4 services in separate windows
+no-docker.bat
+```
+
+Open http://localhost:3000
+
+## Quick Start (No Docker — Linux/macOS)
+
+```bash
+# 1. Install all dependencies
+./no-docker.sh install
+
+# 2. Start all services
+./no-docker.sh start
+```
+
+Open http://localhost:3000
+
 ## Quick Start (Web UI Only — Mock Mode)
 
 Run the Web UI standalone without any backend services:
@@ -33,6 +58,37 @@ VITE_MOCK_MODE=true npm run dev
 ```
 
 This generates synthetic market data client-side for demo purposes. No Python, C++, or Docker required.
+
+## Production Deployment (Docker)
+
+The project includes a full production Docker Compose stack with PostgreSQL, Redis, Prometheus, and Grafana:
+
+```bash
+# Copy and edit production environment
+cp .env.prod.example .env.prod
+# Edit .env.prod with your API keys, database passwords, etc.
+
+# Start all production services
+docker.bat up
+# or: make -f Makefile.prod prod-up
+
+# View logs
+docker.bat logs
+# or: make -f Makefile.prod prod-logs
+
+# Stop
+docker.bat down
+# or: make -f Makefile.prod prod-down
+```
+
+Production services available:
+- Web UI: http://localhost:3000
+- Grafana: http://localhost:3001
+- Prometheus: http://localhost:9090
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
+
+See [Makefile.prod](Makefile.prod) for all production commands.
 
 ## Manual Setup
 
@@ -249,16 +305,23 @@ crypto-trading-simulator/
 ├── docs/                         # Documentation (12 files)
 ├── .github/                      # CI workflows + issue/PR templates
 ├── logs/                         # Timestamped log files (auto-created)
-├── docker-compose.yml            # 4-service orchestration
+├── docker-compose.yml            # 4-service orchestration (development)
+├── docker-compose.prod.yml       # Production: 4 services + PostgreSQL + Redis + Prometheus + Grafana
 ├── shared_config.yaml            # Global settings
 ├── Makefile                      # install, dev, test, test-js, lint, build, docker, logs
+├── Makefile.prod                 # Production: prod-up, prod-down, prod-build, prod-logs, prod-health
+├── install-deps.bat              # One-command dependency installer (Python + C++ + Node)
+├── no-docker.bat / no-docker.sh  # Start all 4 services without Docker (Windows + Linux)
+├── docker.bat / docker.sh        # Production Docker management (up, down, build, logs, ps)
 ├── start.bat / start.sh          # Quick-start scripts (8 windows: 4 services + 4 monitors)
+├── .env.prod.example             # Production environment template
+├── monitoring/                   # Prometheus config + Grafana dashboards
 ├── .editorconfig                 # IDE coding style
 ├── .gitignore
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── README.md
-└── LICENSE                       # Apache 2.0
+└── LICENSE                       # Proprietary (All Rights Reserved)
 ```
 
 ## Troubleshooting

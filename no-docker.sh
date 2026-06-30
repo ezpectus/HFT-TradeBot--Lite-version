@@ -82,7 +82,7 @@ case "$MODE" in
         sleep 3
 
         # Start HFT Trade Bot
-        echo "[3/4] Starting HFT Trade Bot on :8767..."
+        echo "[3/4] Starting HFT Trade Bot (C++ engine)..."
         cd "$PROJECT_ROOT/hft-trade-bot"
         if [ -f "build/hft_trade_bot" ]; then
             ./build/hft_trade_bot config/config.yaml &
@@ -104,7 +104,7 @@ case "$MODE" in
         echo "[OK] All services started!"
         echo "  - Exchange Simulator:  ws://localhost:8765"
         echo "  - AI Signal Bot:       ws://localhost:8766"
-        echo "  - HFT Trade Bot:       ws://localhost:8767"
+        echo "  - HFT Trade Bot:       C++ engine (connects to :8765 + :8766)"
         echo "  - Web UI:              http://localhost:3000"
         echo
         echo "Press Ctrl+C to stop all services."

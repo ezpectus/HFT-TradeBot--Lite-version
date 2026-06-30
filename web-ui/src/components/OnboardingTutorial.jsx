@@ -7,7 +7,7 @@ const STEPS = [
   {
     icon: Zap,
     title: 'Welcome to Trading Sim',
-    body: 'A full-featured crypto trading simulator with 3 exchanges, 3 symbols, live AI signals, and real-time order execution.',
+    body: 'A full-featured crypto trading simulator with 3 exchanges, 3 symbols, live AI signals, and real-time order execution. Includes 190+ analytic panels and 75+ mathematical models.',
   },
   {
     icon: CandlestickChart,
@@ -27,7 +27,7 @@ const STEPS = [
   {
     icon: Check,
     title: 'You\'re All Set!',
-    body: 'Place orders via the order form, set price alerts, detect candle patterns, run backtests, and monitor arbitrage opportunities. Use keyboard shortcuts 1/2/3 for exchanges, Q/W/E for symbols.',
+    body: 'Place orders, set price alerts, run backtests, monitor arbitrage. Press ? for keyboard shortcuts. Tabs: A=Account, B=Bots, S=Signals, R=Arb, P=Prices, F=Fills, H=History, T=Perf. Exchanges: 1/2/3. Symbols: Q/W/E.',
   },
 ]
 

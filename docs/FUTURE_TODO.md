@@ -210,8 +210,8 @@
 - [x] Fair Value Gap heatmap (multi-timeframe) (carried over)
 - [x] Market sentiment gauge (multi-source aggregation) (carried over)
 - [ ] Dark/light theme toggle with CSS variables
-- [ ] Component subfolder organization (order-flow, technical, risk, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading
+- [x] Component subfolder organization (order-flow, technical, risk, etc.)
+- [x] React.lazy + Suspense for panel lazy loading
 - [ ] Custom indicator formula parser (user-defined expressions)
 - [ ] Backtest comparison (side-by-side strategy results)
 - [x] Liquidation map (estimated liquidation levels)
@@ -230,11 +230,11 @@
 - [ ] Custom indicator formula parser (user-defined expressions) (carried over)
 - [ ] Backtest comparison (side-by-side strategy results) (carried over)
 - [ ] Mobile-responsive layout optimization (carried over)
-- [ ] Component subfolder organization (order-flow, technical, risk, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading
+- [x] Component subfolder organization (order-flow, technical, risk, etc.)
+- [x] React.lazy + Suspense for panel lazy loading
 - [ ] Dark/light theme toggle with CSS variables + localStorage persistence
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
 - [ ] Custom indicator formula parser (user-defined expressions)
 - [ ] Backtest comparison (side-by-side strategy results)
 - [ ] Order book depth replay (historical L2 scrubbing)
@@ -258,14 +258,14 @@
 - [ ] Custom indicator formula parser (user-defined expressions) (carried over)
 - [ ] Backtest comparison (side-by-side strategy results) (carried over)
 - [ ] Mobile-responsive layout optimization (carried over)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
 - [ ] Put/Call ratio simulation
 - [ ] Trade simulator with custom slippage model
 - [ ] Dark/light theme toggle with CSS variables + localStorage
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] Put/Call ratio simulation
 - [ ] Trade simulator with custom slippage model
@@ -291,9 +291,9 @@
 - [ ] Custom indicator formula parser (user-defined expressions) (carried over)
 - [ ] Backtest comparison (side-by-side strategy results) (carried over)
 - [ ] Mobile-responsive layout optimization (carried over)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] Put/Call ratio simulation
 - [ ] Trade simulator with custom slippage model
@@ -301,8 +301,8 @@
 - [ ] Market-if-touched (MIT) order simulator
 - [ ] Multi-symbol correlation heatmap
 - [ ] Dark/light theme toggle with CSS variables + localStorage
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
 - [ ] Put/Call ratio simulation
 - [ ] Trade simulator with custom slippage model
 - [x] VWAP by session (London/NY/Asia/Off)
@@ -329,9 +329,9 @@
 - [ ] Custom indicator formula parser (user-defined expressions) (carried over)
 - [ ] Backtest comparison (side-by-side strategy results) (carried over)
 - [ ] Mobile-responsive layout optimization (carried over)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] Put/Call ratio simulation
 - [ ] Trade simulator with custom slippage model
@@ -342,8 +342,8 @@
 - [ ] Tick speed anomaly detector
 - [x] Price action pattern score (composite)
 - [ ] Dark/light theme toggle with CSS variables + localStorage
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
 - [ ] Put/Call ratio simulation
 - [ ] Trade simulator with custom slippage model
 - [ ] Tick speed anomaly detector
@@ -368,9 +368,9 @@
 - [ ] Backtest comparison (side-by-side strategy results) (carried over)
 - [ ] Mobile-responsive layout optimization (carried over)
 - [ ] Dark/light theme toggle with CSS variables + localStorage persistence
-- [ ] Component subfolder organization (technical/, risk/, portfolio/, etc.)
-- [ ] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/, etc.)
+- [x] React.lazy + Suspense for panel lazy loading (reduce initial bundle)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [x] Put/Call ratio simulation
 - [x] Trade simulator with custom slippage model (SlippageSimulator)
@@ -393,9 +393,9 @@
 - [ ] Strategy backtesting with custom rules
 - [ ] Custom indicator formula parser
 - [ ] Backtest comparison (side-by-side results)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/)
-- [ ] React.lazy + Suspense for panel lazy loading
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/)
+- [x] React.lazy + Suspense for panel lazy loading
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] TypeScript migration (incremental)
 - [ ] Zustand global state store
@@ -407,8 +407,8 @@
 - [x] React.lazy + Suspense for panel lazy loading (Suspense wrapper in PanelContainer)
 - [ ] Strategy backtesting with custom rules from Strategy Builder
 - [ ] Backtest comparison (side-by-side strategy results)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] TypeScript migration (incremental, file-by-file)
 - [ ] Zustand global state store
@@ -420,9 +420,9 @@
 - [x] Error boundary per panel (PanelErrorBoundary in PanelContainer)
 - [ ] Strategy backtesting with custom rules from Strategy Builder
 - [ ] Backtest comparison (side-by-side strategy results)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/)
-- [ ] Convert registry.js imports to React.lazy (full code splitting)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/)
+- [x] Convert registry.js imports to React.lazy (full code splitting)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] TypeScript migration (incremental, file-by-file)
 - [ ] Zustand global state store
@@ -435,9 +435,9 @@
 - [x] Performance: virtualize long lists (VirtualList component, applied to FillsPanel + SignalFeed)
 - [ ] Strategy backtesting with custom rules from Strategy Builder
 - [ ] Backtest comparison (side-by-side strategy results)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/)
-- [ ] Convert registry.js imports to React.lazy (full code splitting)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/)
+- [x] Convert registry.js imports to React.lazy (full code splitting)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] TypeScript migration (incremental, file-by-file)
 - [ ] Zustand global state store
@@ -445,7 +445,7 @@
 - [ ] Consolidate duplicate journal systems
 - [ ] Refactor useDetachablePanels (replace inline HTML popup)
 - [ ] WebSocket message queue for offline resilience
-- [ ] Accessibility: ARIA labels, keyboard nav for all panels
+- [x] Accessibility: ARIA labels, keyboard nav for all panels
 - [ ] i18n: extract strings, add locale support
 
 ## Phase 23 — Done + Next
@@ -457,9 +457,9 @@
 - [x] README updated with CLI Monitor Windows documentation
 - [ ] Strategy backtesting with custom rules from Strategy Builder
 - [ ] Backtest comparison (side-by-side strategy results)
-- [ ] Component subfolder organization (technical/, risk/, portfolio/)
-- [ ] Convert registry.js imports to React.lazy (full code splitting)
-- [ ] Vitest unit test setup
+- [x] Component subfolder organization (technical/, risk/, portfolio/)
+- [x] Convert registry.js imports to React.lazy (full code splitting)
+- [x] Vitest unit test setup
 - [ ] Playwright E2E tests
 - [ ] TypeScript migration (incremental, file-by-file)
 - [ ] Zustand global state store
@@ -467,9 +467,9 @@
 - [ ] Consolidate duplicate journal systems
 - [ ] Refactor useDetachablePanels (replace inline HTML popup)
 - [ ] WebSocket message queue for offline resilience
-- [ ] Accessibility: ARIA labels, keyboard nav for all panels
+- [x] Accessibility: ARIA labels, keyboard nav for all panels
 - [ ] i18n: extract strings, add locale support
-- [ ] PWA: service worker, offline mode, install prompt
+- [x] PWA: service worker, offline mode, install prompt
 - [ ] Theme: user-customizable color schemes
 
 ## Phase 24 — Advanced Mathematical Models [DONE]
@@ -612,13 +612,13 @@
 - [x] Mock mode for standalone Web UI demo
 - [x] ESLint + Vitest setup
 - [x] Netlify deployment configuration
-- [ ] Component subfolder organization (order-flow, technical, risk, etc.)
+- [x] Component subfolder organization (order-flow, technical, risk, etc.)
 - [ ] TypeScript migration (incremental, file-by-file)
-- [ ] React.lazy + Suspense for all 191+ panels (full code splitting)
+- [x] React.lazy + Suspense for all 191+ panels (full code splitting)
 - [ ] Playwright E2E tests
 - [ ] Zustand global state store
 - [ ] Message schema versioning (WS protocol v2)
-- [ ] PostgreSQL migration for persistent data
-- [ ] Prometheus + Grafana monitoring
+- [x] PostgreSQL migration for persistent data
+- [x] Prometheus + Grafana monitoring
 - [ ] Consolidate duplicate journal systems (useTradeJournal + TradeJournal)
 - [ ] Refactor useDetachablePanels (replace inline HTML popup)

@@ -13,6 +13,7 @@
 
 #include "../utils/low_latency.h"
 #include <atomic>
+#include <unordered_set>
 #include <array>
 #include <cstdint>
 #include <chrono>
@@ -23,6 +24,7 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <cstdlib>
 
 namespace hft::net {
 

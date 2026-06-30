@@ -8,6 +8,8 @@
 
 namespace hft::ipc {
 
+#pragma pack(push, 1)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Signal struct — 32 bytes
 // Python: struct.Struct('<Q B B f f f f B 3x')
@@ -105,5 +107,7 @@ enum class Side : uint8_t {
     BUY = 0,
     SELL = 1,
 };
+
+#pragma pack(pop)
 
 } // namespace hft::ipc

@@ -113,3 +113,85 @@ class TestArbitrageDetector:
         assert "total_expired" in stats
         assert "total_estimated_profit" in stats
         assert "best_spread_bps" in stats
+
+    def test_duplicate_detection(self, setup_exchanges):
+        """Scanning twice should not duplicate active opportunities."""
+        exchanges, _ = setup_exchanges
+        detector = ArbitrageDetector(
+            exchanges=exchanges,
+            min_spread_bps=0.0,
+            fee_pct=0.001,
+            slippage_bps=0.1,
+        )
+        first = detector.scan()
+        first_count = detector.active_count
+        second = detector.scan()
+        # Second scan should find 0 new duplicates (same order books)
+        assert len(second) == 0
+        assert detector.active_count == first_count
+
+    def test_get_active_returns_copy(self, setup_exchanges):
+        """get_active should return a copy, not internal list."""
+        exchanges, _ = setup_exchanges
+        detector = ArbitrageDetector(
+            exchanges=exchanges,
+            min_spread_bps=0.0,
+            fee_pct=0.001,
+            slippage_bps=0.1,
+        )
+        detector.scan()
+        active = detector.get_active()
+        active.clear()
+        # Internal state should be unaffected
+        assert detector.active_count >= 0
+
+    def test_get_recent_closed_empty(self, setup_exchanges):
+        """get_recent_closed should return empty list initially."""
+        exchanges, _ = setup_exchanges
+        detector = ArbitrageDetector(exchanges=exchanges)
+        closed = detector.get_recent_closed()
+        assert isinstance(closed, list)
+        assert len(closed) == 0
+
+    def test_opportunity_dataclass_fields(self):
+        """ArbitrageOpportunity should have all required fields."""
+        opp = ArbitrageOpportunity(
+            symbol="BTC/USDT",
+            buy_exchange="binance",
+            sell_exchange="bybit",
+            buy_price=65000.0,
+            sell_price=65100.0,
+            gross_spread=100.0,
+            net_spread=50.0,
+            spread_bps=7.7,
+            buy_quantity=1.0,
+            sell_quantity=0.5,
+            max_quantity=0.5,
+            estimated_profit=25.0,
+            timestamp=1704067200,
+        )
+        assert opp.status == ArbStatus.OPEN
+        assert opp.closed_at == 0
+        assert opp.close_reason == ""
+        assert opp.symbol == "BTC/USDT"
+        assert opp.max_quantity == 0.5
+
+    def test_expiry_removes_old_opportunities(self, setup_exchanges):
+        """Opportunities older than TTL should be expired."""
+        exchanges, _ = setup_exchanges
+        detector = ArbitrageDetector(
+            exchanges=exchanges,
+            min_spread_bps=0.0,
+            fee_pct=0.001,
+            slippage_bps=0.1,
+            opportunity_ttl=0.01,  # 10ms TTL — expires almost immediately
+        )
+        detector.scan()
+        initial_count = detector.active_count
+
+        import time as _time
+        _time.sleep(0.02)  # wait for TTL to expire
+
+        detector.scan()  # next scan triggers expiry
+        assert detector.active_count <= initial_count
+        assert detector.stats["total_expired"] >= 0

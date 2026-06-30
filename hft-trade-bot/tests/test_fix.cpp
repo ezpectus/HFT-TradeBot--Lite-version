@@ -1,7 +1,7 @@
 // Tests: FIX message encode/decode, checksum, session states
-#include "../fix/fix_message.h"
-#include "../fix/fix_encoder.h"
-#include "../fix/fix_decoder.h"
+#include "../src/fix/fix_message.h"
+#include "../src/fix/fix_encoder.h"
+#include "../src/fix/fix_decoder.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>

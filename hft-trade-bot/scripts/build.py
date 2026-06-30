@@ -42,6 +42,19 @@ def main():
 
     cmake_cmd = ["cmake", "-B", build_dir, "-S", project_dir,
                  f"-DCMAKE_BUILD_TYPE={build_type}"]
+
+    # Add vcpkg toolchain for Windows dependency management
+    vcpkg_root = os.environ.get("VCPKG_ROOT")
+    if vcpkg_root:
+        toolchain = os.path.join(vcpkg_root, "scripts", "buildsystems", "vcpkg.cmake")
+        if os.path.exists(toolchain):
+            cmake_cmd.append(f"-DCMAKE_TOOLCHAIN_FILE={toolchain}")
+
+    # Add websocketpp include path if cloned at project root
+    wspp_path = os.path.join(os.path.dirname(project_dir), "websocketpp")
+    if os.path.exists(os.path.join(wspp_path, "websocketpp", "client.hpp")):
+        cmake_cmd.append(f"-DWEBSOCKETPP_INCLUDE_DIR={wspp_path}")
+
     if not run(cmake_cmd):
         print("CMake configuration failed!")
         sys.exit(1)
@@ -57,7 +70,8 @@ def main():
         print("Build failed!")
         sys.exit(1)
 
-    print(f"\nBuild complete: {build_dir}/hft_trade_bot")
+    binary_name = "hft_trade_bot.exe" if os.name == "nt" else "hft_trade_bot"
+    print(f"\nBuild complete: {os.path.join(build_dir, binary_name)}")
 
     if args.tests:
         print("\nRunning tests...")

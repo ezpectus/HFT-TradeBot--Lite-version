@@ -1,5 +1,6 @@
-import { Bot, Cpu, Radio, TrendingUp, TrendingDown, Activity, Zap } from 'lucide-react'
+import { Bot, Cpu, Radio, TrendingUp, TrendingDown, Activity, Zap, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { formatPrice, formatTime, colorForSide } from '../utils/format'
+import { EmptyState } from './LoadingSkeleton'
 
 export default function BotStatus({ signals, fills, accounts, signalConnected, exchangeConnected }) {
   // Derive bot activity from signals + fills
@@ -47,6 +48,12 @@ export default function BotStatus({ signals, fills, accounts, signalConnected, e
   }
   activity.sort((a, b) => b.time - a.time)
 
+  const lastSignalTime = signals.length > 0 ? signals[0].timestamp : null
+  const lastFillTime = fills.length > 0 ? fills[0].timestamp : null
+  const now = Date.now() / 1000
+  const signalAge = lastSignalTime ? Math.floor(now - lastSignalTime) : null
+  const fillAge = lastFillTime ? Math.floor(now - lastFillTime) : null
+
   return (
     <div className="p-2 space-y-2">
       {/* Bot status cards */}
@@ -67,6 +74,12 @@ export default function BotStatus({ signals, fills, accounts, signalConnected, e
             <div className="flex justify-between">
               <span className="text-gray-500">Signals sent</span>
               <span className="text-gray-300 font-mono">{signals.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Last signal</span>
+              <span className="text-gray-400 font-mono">
+                {signalAge === null ? '—' : signalAge < 60 ? `${signalAge}s ago` : `${Math.floor(signalAge / 60)}m ago`}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-500">Port</span>
@@ -93,9 +106,47 @@ export default function BotStatus({ signals, fills, accounts, signalConnected, e
               <span className="text-gray-300 font-mono">{fills.length}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-gray-500">Last fill</span>
+              <span className="text-gray-400 font-mono">
+                {fillAge === null ? '—' : fillAge < 60 ? `${fillAge}s ago` : `${Math.floor(fillAge / 60)}m ago`}
+              </span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-gray-500">Port</span>
               <span className="text-gray-400 font-mono">8765</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Circuit Breaker status */}
+      <div className={`bg-bg-700 rounded-lg p-2.5 ${signalConnected && exchangeConnected ? 'ring-1 ring-accent-green/20' : 'ring-1 ring-accent-amber/30'}`}>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          {signalConnected && exchangeConnected ? (
+            <ShieldCheck size={14} className="text-accent-green" />
+          ) : (
+            <ShieldAlert size={14} className="text-accent-amber" />
+          )}
+          <span className="text-xs font-medium">Circuit Breaker</span>
+        </div>
+        <div className="space-y-1 text-[10px]">
+          <div className="flex justify-between">
+            <span className="text-gray-500">AI Signal Bot</span>
+            <span className={signalConnected ? 'text-accent-green' : 'text-accent-amber'}>
+              {signalConnected ? 'CLOSED (healthy)' : 'OPEN (tripped)'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">HFT Trade Bot</span>
+            <span className={exchangeConnected ? 'text-accent-green' : 'text-accent-amber'}>
+              {exchangeConnected ? 'CLOSED (healthy)' : 'OPEN (tripped)'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Overall</span>
+            <span className={signalConnected && exchangeConnected ? 'text-accent-green' : 'text-accent-amber'}>
+              {signalConnected && exchangeConnected ? 'ALL OPERATIONAL' : 'DEGRADED'}
+            </span>
           </div>
         </div>
       </div>
@@ -140,10 +191,11 @@ export default function BotStatus({ signals, fills, accounts, signalConnected, e
           Bot Activity
         </div>
         {!activity.length ? (
-          <div className="text-center text-gray-500 text-xs py-4">
-            <Zap size={18} className="mx-auto mb-1 opacity-50" />
-            Waiting for bot activity...
-          </div>
+          <EmptyState
+            icon={Zap}
+            title="Waiting for bot activity"
+            subtitle="Signals and fills will appear here"
+          />
         ) : (
           <div className="space-y-1">
             {activity.slice(0, 15).map((item, i) => {

@@ -127,12 +127,11 @@ class RiskManager:
         # Track peak/trough
         if state.side == "LONG":
             state.peak_price = max(state.peak_price, current_price)
-        else:
             state.trough_price = min(state.trough_price, current_price) if state.trough_price > 0 else current_price
+        else:
+            # For SHORT: peak = best (lowest) price, trough = worst (highest) price
             state.peak_price = min(state.peak_price, current_price) if state.peak_price > 0 else current_price
-            # For SHORT, peak_price tracks the lowest price (favorable)
-            if state.peak_price == 0:
-                state.peak_price = current_price
+            state.trough_price = max(state.trough_price, current_price)
 
         # Recalculate ATR if candle provided
         if candle and self.config.trailing_atr_multiplier > 0:

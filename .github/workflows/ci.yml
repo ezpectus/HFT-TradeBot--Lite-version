@@ -50,7 +50,7 @@ jobs:
           cache-dependency-path: web-ui/package.json
       - run: npm ci || npm install
         working-directory: web-ui
-      - run: npx eslint src/ --max-warnings 0
+      - run: npm run lint
         working-directory: web-ui
 
   test-python:
@@ -73,6 +73,13 @@ jobs:
         working-directory: ${{ matrix.component }}
       - run: python -m pytest tests/ -v --tb=short --cov=src --cov-report=xml
         working-directory: ${{ matrix.component }}
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ${{ matrix.component }}/coverage.xml
+          flags: ${{ matrix.component }}
+          name: ${{ matrix.component }}-coverage
+          fail_ci_if_error: false
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.component }}
@@ -117,14 +124,33 @@ jobs:
         run: |
           mkdir -p build && cd build
           if [ "${{ matrix.compiler }}" = "clang-17" ]; then
-            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++-17
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-17 \
+              -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage"
           else
-            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++-13
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=g++-13 \
+              -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage"
           fi
           make -j$(nproc)
       - name: Run unit tests
         working-directory: hft-trade-bot/build
         run: ctest --output-on-failure
+      - name: Generate coverage report
+        if: matrix.compiler == 'gcc-13'
+        working-directory: hft-trade-bot/build
+        run: |
+          sudo apt-get install -y lcov
+          lcov --capture --directory . --output-file coverage.info \
+            --rc lcov_branch_coverage=0
+          lcov --remove coverage.info '/usr/*' '*/tests/*' '*/doctest.h' \
+            --output-file coverage.info
+      - name: Upload coverage to Codecov
+        if: matrix.compiler == 'gcc-13'
+        uses: codecov/codecov-action@v4
+        with:
+          files: hft-trade-bot/build/coverage.info
+          flags: hft-trade-bot
+          name: hft-trade-bot-coverage
+          fail_ci_if_error: false
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -132,6 +158,33 @@ jobs:
           name: logs-cpp-${{ matrix.compiler }}
           path: logs/
           if-no-files-found: ignore
+
+  test-cpp-msvc:
+    name: C++ Build (MSVC Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 2023.10.19
+      - name: Install C++ libraries via vcpkg
+        run: |
+          vcpkg install boost-system boost-random openssl spdlog fmt nlohmann-json yaml-cpp --triplet x64-windows
+      - name: Clone websocketpp
+        run: git clone https://github.com/zaphoyd/websocketpp.git
+      - name: Configure CMake
+        working-directory: hft-trade-bot
+        run: |
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake `
+            -DWEBSOCKETPP_INCLUDE_DIR=../websocketpp
+      - name: Build
+        working-directory: hft-trade-bot
+        run: cmake --build build --config Release -j
+      - name: Run unit tests
+        working-directory: hft-trade-bot/build
+        run: ctest --output-on-failure -C Release
 
   test-js:
     name: JS Tests & Coverage
@@ -148,12 +201,19 @@ jobs:
       - name: Run Vitest with coverage
         run: npx vitest run --coverage --passWithNoTests
         working-directory: web-ui
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: web-ui/coverage
+          flags: web-ui
+          name: web-ui-coverage
+          fail_ci_if_error: false
       - uses: actions/upload-artifact@v4
         with:
           name: js-coverage
           path: web-ui/coverage/
       - name: Lint
-        run: npx eslint src/ --max-warnings 0
+        run: npm run lint
         working-directory: web-ui
 
   build-js:
@@ -219,3 +279,118 @@ jobs:
         working-directory: web-ui
       - run: npm audit --audit-level=high || true
         working-directory: web-ui
+      - name: Check for vulnerabilities
+        run: |
+          AUDIT_OUTPUT=$(npm audit 2>&1 || true)
+          echo "$AUDIT_OUTPUT"
+          if echo "$AUDIT_OUTPUT" | grep -q "critical"; then
+            echo "::warning::Critical vulnerabilities found (may be dev-only)"
+          fi
+        working-directory: web-ui
+
+  test-summary:
+    name: All Tests Passed
+    runs-on: ubuntu-latest
+    needs: [lint-python, lint-cpp, lint-js, test-python, test-cpp, test-cpp-msvc, test-js, build-js, build-docker, audit-deps]
+    if: always()
+    steps:
+      - name: Check all job results
+        run: |
+          echo "Aggregating results from all CI jobs..."
+          ALL_PASSED=true
+
+          for job in lint-python lint-cpp lint-js test-python test-cpp test-cpp-msvc test-js build-js build-docker audit-deps; do
+            RESULT="${{ toJSON(needs.${job}.result) }}"
+            echo "  $job: $RESULT"
+            if [ "$RESULT" != "success" ]; then
+              ALL_PASSED=false
+            fi
+          done
+
+          if [ "$ALL_PASSED" = "true" ]; then
+            echo "✅ All CI checks passed!"
+          else
+            echo "❌ One or more CI checks failed"
+            exit 1
+          fi
+
+  test-count:
+    name: Test Count Summary
+    runs-on: ubuntu-latest
+    needs: [test-python, test-cpp, test-js]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Count and report test files
+        run: |
+          echo "=== Test File Count Summary ==="
+
+          PY_COUNT=$(find exchange-simulator/tests ai-signal-bot/tests -name "test_*.py" -type f 2>/dev/null | wc -l)
+          CPP_DOCTEST_COUNT=$(find hft-trade-bot/tests -name "test_doctest_*.cpp" -type f 2>/dev/null | wc -l)
+          CPP_CTEST_COUNT=$(find hft-trade-bot/tests -name "test_*.cpp" -not -name "test_doctest_*" -not -name "test_fix*" -type f 2>/dev/null | wc -l)
+          JS_COUNT=$(find web-ui/src/test -name "*.test.*" -type f 2>/dev/null | wc -l)
+
+          TOTAL=$((PY_COUNT + CPP_DOCTEST_COUNT + CPP_CTEST_COUNT + JS_COUNT))
+
+          echo "::notice::Test files — Python: $PY_COUNT, C++ doctest: $CPP_DOCTEST_COUNT, C++ CTest: $CPP_CTEST_COUNT, Web UI: $JS_COUNT (Total: $TOTAL)"
+
+          echo "| Language | Test Files |"
+          echo "|----------|-----------|"
+          echo "| Python (pytest) | $PY_COUNT |"
+          echo "| C++ (doctest) | $CPP_DOCTEST_COUNT |"
+          echo "| C++ (CTest) | $CPP_CTEST_COUNT |"
+          echo "| Web UI (Vitest) | $JS_COUNT |"
+          echo "| **Total** | **$TOTAL** |"
+
+          # Assert test count floor to catch accidental test deletion
+          MIN_TOTAL=75
+          if [ "$TOTAL" -lt "$MIN_TOTAL" ]; then
+            echo "::error::Test file count ($TOTAL) dropped below minimum floor ($MIN_TOTAL). Tests may have been accidentally deleted."
+            exit 1
+          fi
+
+          # Per-language floors to catch deletion within a single language
+          MIN_PY=30
+          MIN_CPP_DOCTEST=20
+          MIN_CPP_CTEST=8
+          MIN_JS=30
+          FAIL=0
+          if [ "$PY_COUNT" -lt "$MIN_PY" ]; then
+            echo "::error::Python test files ($PY_COUNT) below floor ($MIN_PY)."
+            FAIL=1
+          fi
+          if [ "$CPP_DOCTEST_COUNT" -lt "$MIN_CPP_DOCTEST" ]; then
+            echo "::error::C++ doctest files ($CPP_DOCTEST_COUNT) below floor ($MIN_CPP_DOCTEST)."
+            FAIL=1
+          fi
+          if [ "$CPP_CTEST_COUNT" -lt "$MIN_CPP_CTEST" ]; then
+            echo "::error::C++ CTest files ($CPP_CTEST_COUNT) below floor ($MIN_CPP_CTEST)."
+            FAIL=1
+          fi
+          if [ "$JS_COUNT" -lt "$MIN_JS" ]; then
+            echo "::error::Web UI test files ($JS_COUNT) below floor ($MIN_JS)."
+            FAIL=1
+          fi
+          if [ "$FAIL" -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "::notice::Test count $TOTAL meets minimum floor ($MIN_TOTAL) ✅"
+
+          # Count actual test cases (not just files) for visibility
+          echo ""
+          echo "=== Test Case Count (approximate) ==="
+          PY_CASES=$(grep -rE "^\s*(def test_|class Test)" exchange-simulator/tests ai-signal-bot/tests --include="*.py" 2>/dev/null | wc -l)
+          CPP_DOCTEST_CASES=$(grep -rE "TEST_CASE\(" hft-trade-bot/tests --include="test_doctest_*.cpp" 2>/dev/null | wc -l)
+          JS_CASES=$(grep -rE "^\s*(it|test)\(" web-ui/src/test --include="*.test.*" 2>/dev/null | wc -l)
+          TOTAL_CASES=$((PY_CASES + CPP_DOCTEST_CASES + JS_CASES))
+
+          echo "::notice::Test cases — Python: $PY_CASES, C++ doctest: $CPP_DOCTEST_CASES, Web UI: $JS_CASES (Total: $TOTAL_CASES)"
+
+          echo ""
+          echo "| Language | Test Cases |"
+          echo "|----------|-----------|"
+          echo "| Python (pytest) | $PY_CASES |"
+          echo "| C++ (doctest) | $CPP_DOCTEST_CASES |"
+          echo "| Web UI (Vitest) | $JS_CASES |"
+          echo "| **Total** | **$TOTAL_CASES** |"

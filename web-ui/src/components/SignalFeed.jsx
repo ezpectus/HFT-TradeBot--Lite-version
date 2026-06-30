@@ -1,8 +1,36 @@
-import { Radio, TrendingUp, TrendingDown, Minus, Activity } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Radio, TrendingUp, TrendingDown, Minus, Activity, Filter, Search } from 'lucide-react'
 import { formatPrice, formatTime, colorForSide } from '../utils/format'
 import VirtualList from './VirtualList'
+import { EmptyState } from './LoadingSkeleton'
+import { useDebounce } from '../hooks/useDebounce'
+
+const FILTERS = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Long', value: 'LONG' },
+  { label: 'Short', value: 'SHORT' },
+]
 
 export default function SignalFeed({ signals, regime }) {
+  const [filter, setFilter] = useState('ALL')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
+
+  const filteredSignals = useMemo(() => {
+    let result = signals
+    if (filter !== 'ALL') {
+      result = result.filter(s => s.direction === filter)
+    }
+    if (debouncedSearch) {
+      const q = debouncedSearch.toUpperCase()
+      result = result.filter(s =>
+        s.symbol?.toUpperCase().includes(q) ||
+        s.reason?.toUpperCase().includes(q)
+      )
+    }
+    return result
+  }, [signals, filter, debouncedSearch])
+
   return (
     <div className="p-2 space-y-1">
       {/* Market regime */}
@@ -57,19 +85,52 @@ export default function SignalFeed({ signals, regime }) {
         </div>
       )}
 
-      {/* Signal list */}
-      <div className="text-xs font-medium text-gray-400 mb-1 px-1">
-        AI Signals ({signals.length})
+      {/* Signal list header with filter + search */}
+      <div className="flex items-center justify-between mb-1 px-1">
+        <span className="text-xs font-medium text-gray-400">
+          AI Signals ({filteredSignals.length}{filter !== 'ALL' || debouncedSearch ? `/${signals.length}` : ''})
+        </span>
+        {signals.length > 0 && (
+          <div className="flex items-center gap-1" role="group" aria-label="Signal filter">
+            <div className="relative">
+              <Search size={10} className="absolute left-1 top-1/2 -translate-y-1/2 text-gray-600" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search..."
+                className="w-16 bg-bg-600 border border-bg-500 rounded pl-4 pr-1 py-0.5 text-[9px] text-gray-200 outline-none focus:border-accent-blue"
+                aria-label="Search signals by symbol or reason"
+              />
+            </div>
+            <Filter size={10} className="text-gray-600" />
+            {FILTERS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                aria-pressed={filter === f.value}
+                className={`px-1.5 py-0.5 text-[9px] font-medium rounded transition-colors ${
+                  filter === f.value
+                    ? 'bg-bg-500 text-gray-200'
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {!signals.length ? (
-        <div className="text-center text-gray-500 text-xs py-4">
-          <Radio size={20} className="mx-auto mb-1 opacity-50" />
-          Waiting for signals...
-        </div>
+      {!filteredSignals.length ? (
+        <EmptyState
+          icon={Radio}
+          title={signals.length === 0 ? 'Waiting for signals' : 'No signals match filter'}
+          subtitle={signals.length === 0 ? 'AI signal bot will appear here when connected' : 'Try changing the filter or search query'}
+        />
       ) : (
         <VirtualList
-          items={signals}
+          items={filteredSignals}
           itemHeight={72}
           maxHeight={400}
           renderItem={(sig, i) => {

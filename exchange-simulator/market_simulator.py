@@ -29,6 +29,7 @@ class MarketSimulator:
         seed: Optional[int] = 42,
         warmup_candles: int = 200,
         order_book_depth: int = 20,
+        correlations: Optional[dict[tuple[str, str], float]] = None,
     ):
         self.symbols = symbols
         self.exchanges = exchanges
@@ -66,6 +67,21 @@ class MarketSimulator:
         self._funding_interval = 96
         self._candle_count = 0
         self._funding_rates: dict[str, float] = {}  # per exchange
+        self._funding_history: list[dict] = []  # [{timestamp, exchange, rate}]
+        self._max_funding_history = 500
+
+        # Inter-symbol correlation matrix
+        # Default: BTC/ETH correlation = 0.85, others = 0.3
+        self._correlations: dict[tuple[str, str], float] = {}
+        if correlations:
+            self._correlations = dict(correlations)
+        else:
+            for i, s1 in enumerate(symbols):
+                for s2 in symbols[i+1:]:
+                    if "BTC" in s1 and "ETH" in s2 or "ETH" in s1 and "BTC" in s2:
+                        self._correlations[(s1, s2)] = 0.85
+                    else:
+                        self._correlations[(s1, s2)] = 0.3
 
         # News event state
         self._news_event: Optional[dict] = None  # {symbol, intensity, remaining}
@@ -118,8 +134,17 @@ class MarketSimulator:
             if self._weekend_mode:
                 sigma *= self._weekend_vol_mult
 
-            # GBM step — same random draw for all exchanges (correlated)
-            z = self.rng.gauss(0, 1)
+            # Correlated random draw: base z + per-symbol idiosyncratic component
+            # z_shared drives correlation, z_idio drives symbol-specific movement
+            z_shared = self.rng.gauss(0, 1)
+            z_idio = self.rng.gauss(0, 1)
+            # Find correlation for this symbol vs the first symbol (market factor)
+            corr = 0.5  # default correlation to market
+            for (s1, s2), c in self._correlations.items():
+                if symbol in (s1, s2):
+                    corr = c
+                    break
+            z = corr * z_shared + math.sqrt(1 - corr * corr) * z_idio
             
             # Apply news event volatility spike
             news_mult = 1.0
@@ -168,7 +193,15 @@ class MarketSimulator:
             for exchange in self.exchanges:
                 # Funding rate: small random rate, typically -0.03% to +0.03%
                 base_rate = self.rng.gauss(0, 0.0002)
-                self._funding_rates[exchange] = round(base_rate, 6)
+                rate = round(base_rate, 6)
+                self._funding_rates[exchange] = rate
+                self._funding_history.append({
+                    "timestamp": self._current_ts,
+                    "exchange": exchange,
+                    "rate": rate,
+                })
+            if len(self._funding_history) > self._max_funding_history:
+                self._funding_history = self._funding_history[-self._max_funding_history:]
 
     def next_candle(self) -> list[Candle]:
         """Advance one timeframe and return all new candles."""
@@ -276,6 +309,22 @@ class MarketSimulator:
             ex: 0.0 for ex in self.exchanges
         }
 
+    def get_funding_history(self, exchange: Optional[str] = None, n: int = 100) -> list[dict]:
+        """Return funding rate history. Optionally filter by exchange."""
+        history = self._funding_history
+        if exchange:
+            history = [h for h in history if h["exchange"] == exchange]
+        return history[-n:] if len(history) >= n else history[:]
+
+    def get_correlation(self, symbol1: str, symbol2: str) -> float:
+        """Return correlation between two symbols."""
+        if symbol1 == symbol2:
+            return 1.0
+        for (s1, s2), c in self._correlations.items():
+            if (s1 == symbol1 and s2 == symbol2) or (s1 == symbol2 and s2 == symbol1):
+                return c
+        return 0.0
+
     @property
     def candles_to_next_funding(self) -> int:
         """Candles remaining until next funding update."""
@@ -303,7 +352,7 @@ class MarketSimulator:
     def auto_check_weekend(self) -> bool:
         """Auto-detect weekend from current timestamp (Sat=5, Sun=6)."""
         import datetime
-        dt = datetime.datetime.utcfromtimestamp(self._current_ts)
+        dt = datetime.datetime.fromtimestamp(self._current_ts, tz=datetime.timezone.utc)
         is_weekend = dt.weekday() >= 5
         self._weekend_mode = is_weekend
         return is_weekend

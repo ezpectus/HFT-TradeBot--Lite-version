@@ -83,7 +83,10 @@ class FixMessage:
             eq = part.find('=')
             if eq < 0:
                 continue
-            tag = int(part[:eq])
+            try:
+                tag = int(part[:eq])
+            except ValueError:
+                continue
             value = part[eq + 1:]
             msg.fields[tag] = value
         return msg

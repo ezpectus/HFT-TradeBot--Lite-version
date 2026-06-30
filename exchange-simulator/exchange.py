@@ -41,6 +41,8 @@ class SimulatedExchange:
             leverage=leverage,
         )
         self._order_history: list[Order] = []
+        self.insurance_fund: float = 0.0
+        self.partial_liquidation_ratio: float = 0.5  # 50% partial liq before full
 
     @property
     def symbols(self) -> list[str]:
@@ -240,7 +242,13 @@ class SimulatedExchange:
         self.account.positions.append(position)
 
     def check_stop_loss_take_profit(self) -> list[Order]:
-        """Check all positions for SL/TP/liquidation triggers and close them."""
+        """Check all positions for SL/TP/liquidation triggers and close them.
+
+        Liquidation engine supports partial liquidation: when a position hits
+        the liquidation price, a portion is closed first (partial_liquidation_ratio).
+        If the position continues to deteriorate, the remainder is fully liquidated.
+        Any residual loss after full liquidation is covered by the insurance fund.
+        """
         closed_orders = []
         positions_to_close = []
 
@@ -248,52 +256,78 @@ class SimulatedExchange:
             current_price = self.get_price(pos.symbol)
             pos.update_pnl(current_price)
 
-            # Calculate margin and liquidation
-            notional = pos.entry_price * pos.quantity
-            margin = notional / self.account.leverage
-            maintenance_margin = margin * 0.005  # 0.5% maintenance rate
-            equity = self.account.balance + sum(
-                p.unrealized_pnl for p in self.account.positions
-            )
-
-            # Liquidation: unrealized loss exceeds margin - maintenance
-            is_liquidated = False
+            # Calculate liquidation prices
             if pos.is_long:
                 liq_price = pos.entry_price * (1 - 1/self.account.leverage + 0.005)
-                if current_price <= liq_price:
-                    is_liquidated = True
+                partial_liq_price = pos.entry_price * (
+                    1 - 1/self.account.leverage * self.partial_liquidation_ratio + 0.005
+                )
             else:
                 liq_price = pos.entry_price * (1 + 1/self.account.leverage - 0.005)
-                if current_price >= liq_price:
-                    is_liquidated = True
+                partial_liq_price = pos.entry_price * (
+                    1 + 1/self.account.leverage * self.partial_liquidation_ratio - 0.005
+                )
 
-            if is_liquidated:
-                positions_to_close.append((pos, "LIQUIDATION"))
+            # Full liquidation check
+            is_full_liquidation = False
+            is_partial_liquidation = False
+            if pos.is_long:
+                if current_price <= liq_price:
+                    is_full_liquidation = True
+                elif current_price <= partial_liq_price:
+                    is_partial_liquidation = True
+            else:
+                if current_price >= liq_price:
+                    is_full_liquidation = True
+                elif current_price >= partial_liq_price:
+                    is_partial_liquidation = True
+
+            if is_full_liquidation:
+                positions_to_close.append((pos, "LIQUIDATION", pos.quantity))
                 continue
 
+            if is_partial_liquidation:
+                partial_qty = pos.quantity * self.partial_liquidation_ratio
+                positions_to_close.append((pos, "PARTIAL_LIQUIDATION", partial_qty))
+                continue
+
+            # SL/TP checks
             if pos.is_long:
                 if current_price <= pos.stop_loss:
-                    positions_to_close.append((pos, "STOP_LOSS"))
+                    positions_to_close.append((pos, "STOP_LOSS", pos.quantity))
                 elif current_price >= pos.take_profit:
-                    positions_to_close.append((pos, "TAKE_PROFIT"))
+                    positions_to_close.append((pos, "TAKE_PROFIT", pos.quantity))
             else:
                 if current_price >= pos.stop_loss:
-                    positions_to_close.append((pos, "STOP_LOSS"))
+                    positions_to_close.append((pos, "STOP_LOSS", pos.quantity))
                 elif current_price <= pos.take_profit:
-                    positions_to_close.append((pos, "TAKE_PROFIT"))
+                    positions_to_close.append((pos, "TAKE_PROFIT", pos.quantity))
 
-        for pos, reason in positions_to_close:
+        for pos, reason, close_qty in positions_to_close:
             close_side = Side.SELL if pos.is_long else Side.BUY
             order = self.submit_order(
                 symbol=pos.symbol,
                 side=close_side,
-                quantity=pos.quantity,
+                quantity=close_qty,
                 order_type=OrderType.MARKET,
             )
             order.status = OrderStatus.FILLED
-            # Update the last trade history entry with the correct reason
-            if self.account.trade_history:
-                self.account.trade_history[-1].reason = reason
+
+            # For partial liquidation, reduce position quantity instead of removing
+            if reason == "PARTIAL_LIQUIDATION":
+                pos.quantity -= close_qty
+                if self.account.trade_history:
+                    self.account.trade_history[-1].reason = reason
+            else:
+                # Full close — check if insurance fund is needed
+                if reason == "LIQUIDATION":
+                    # If balance went negative from liquidation, cover from insurance fund
+                    if self.account.balance < 0:
+                        deficit = abs(self.account.balance)
+                        self.insurance_fund += deficit
+                        self.account.balance = 0.0
+                if self.account.trade_history:
+                    self.account.trade_history[-1].reason = reason
             closed_orders.append(order)
 
         return closed_orders
@@ -332,3 +366,53 @@ class SimulatedExchange:
     def get_account_status(self) -> dict:
         self.update_positions_pnl()
         return self.account.to_dict()
+
+    def get_depth_snapshot(self, symbol: str, levels: int = 20) -> dict:
+        """Return a depth snapshot for a symbol — cumulative bid/ask volumes,
+        imbalance, spread, and per-level breakdown.
+
+        Useful for REST API endpoints and depth profile visualization.
+        """
+        ob = self.get_order_book(symbol)
+        if not ob.bids or not ob.asks:
+            return {"symbol": symbol, "exchange": self.exchange_id, "bids": [], "asks": [],
+                    "spread_bps": 0, "imbalance": 0, "bid_depth": 0, "ask_depth": 0}
+
+        n = min(levels, len(ob.bids), len(ob.asks))
+        bid_levels = []
+        ask_levels = []
+        cum_bid = 0.0
+        cum_ask = 0.0
+
+        for i in range(n):
+            cum_bid += ob.bids[i].quantity
+            cum_ask += ob.asks[i].quantity
+            bid_levels.append({
+                "price": ob.bids[i].price,
+                "quantity": ob.bids[i].quantity,
+                "cumulative": round(cum_bid, 4),
+            })
+            ask_levels.append({
+                "price": ob.asks[i].price,
+                "quantity": ob.asks[i].quantity,
+                "cumulative": round(cum_ask, 4),
+            })
+
+        mid = (ob.bids[0].price + ob.asks[0].price) / 2
+        spread = ob.asks[0].price - ob.bids[0].price
+        spread_bps = (spread / mid * 10000) if mid > 0 else 0
+        total = cum_bid + cum_ask
+        imbalance = (cum_bid - cum_ask) / total if total > 0 else 0
+
+        return {
+            "symbol": symbol,
+            "exchange": self.exchange_id,
+            "timestamp": self.market.current_timestamp,
+            "mid_price": round(mid, 2),
+            "spread_bps": round(spread_bps, 2),
+            "imbalance": round(imbalance, 4),
+            "bid_depth": round(cum_bid, 4),
+            "ask_depth": round(cum_ask, 4),
+            "bids": bid_levels,
+            "asks": ask_levels,
+        }

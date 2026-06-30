@@ -109,7 +109,11 @@ class AISignalBot:
         self.logger.info("  AI SIGNAL BOT v1.0.0")
         self.logger.info(f"  Symbols: {self.config.symbols}")
         self.logger.info(f"  Strategies: {[s.name for s in self.strategies]}")
+        self.logger.info(f"  Ensemble: mode={self.config.ensemble_mode}, min_votes={self.config.ensemble_min_votes}")
+        self.logger.info(f"  Validation: min_conf={self.config.min_confidence}%, min_rr={self.config.min_rr_ratio}")
+        self.logger.info(f"  Signal interval: {self.config.signal_interval}s")
         self.logger.info(f"  Paper trading: {self.config.paper_trading}")
+        self.logger.info(f"  Exchange: {self.config.ws_url}")
         self.logger.info("=" * 60)
 
         # Connect to exchange simulator

@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import mmap
 import os
+import sys
 import struct
 import logging
 from typing import Optional
 from dataclasses import dataclass
 
 from .shm_ring_buffer import MARKET_SNAPSHOT_STRUCT
+
+IS_WINDOWS = sys.platform == 'win32'
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +43,18 @@ class ShmMarketDataWriter:
         """Create the SHM segment."""
         try:
             self._total_size = 8 + self.max_symbols * SLOT_SIZE
-            self._fd = os.open(f"/dev/shm{self.name}", os.O_CREAT | os.O_RDWR, 0o666)
-            os.ftruncate(self._fd, self._total_size)
-            self._mm = mmap.mmap(
-                self._fd, self._total_size, mmap.MAP_SHARED,
-                mmap.PROT_READ | mmap.PROT_WRITE,
-            )
+            if IS_WINDOWS:
+                tag = self.name.lstrip("/")
+                self._mm = mmap.mmap(-1, self._total_size, tagname=tag,
+                                     access=mmap.ACCESS_WRITE)
+                self._fd = -1
+            else:
+                self._fd = os.open(f"/dev/shm{self.name}", os.O_CREAT | os.O_RDWR, 0o666)
+                os.ftruncate(self._fd, self._total_size)
+                self._mm = mmap.mmap(
+                    self._fd, self._total_size, mmap.MAP_SHARED,
+                    mmap.PROT_READ | mmap.PROT_WRITE,
+                )
             # Zero out
             self._mm[0:self._total_size] = b'\x00' * self._total_size
             # Write num_slots
@@ -97,13 +106,14 @@ class ShmMarketDataWriter:
         if self._mm:
             self._mm.close()
             self._mm = None
-        if self._fd >= 0:
+        if not IS_WINDOWS and self._fd >= 0:
             os.close(self._fd)
             self._fd = -1
-        try:
-            os.remove(f"/dev/shm{self.name}")
-        except FileNotFoundError:
-            pass
+        if not IS_WINDOWS:
+            try:
+                os.remove(f"/dev/shm{self.name}")
+            except FileNotFoundError:
+                pass
 
     def __enter__(self):
         self.init()

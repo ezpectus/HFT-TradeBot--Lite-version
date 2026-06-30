@@ -1,20 +1,34 @@
 # Exchange Simulator Configuration
 # ================================
+# Simulated crypto exchange for paper trading and strategy testing.
+# Generates realistic candle data with configurable volatility, drift,
+# order books, funding rates, and arbitrage detection.
+#
+# Sections:
+#   exchanges      — per-exchange settings (fees, slippage, symbols)
+#   initial_prices — starting prices for each symbol (USD)
+#   volatility     — annualized volatility per symbol (0.5=low, 1.0=medium, 2.0=high)
+#   market         — candle timeframe, drift, seed, warmup, order book depth
+#   account        — starting balance, currency, leverage
+#   visualizer     — CLI chart display settings
+#   websocket      — WebSocket server for streaming data to bots/UI
+#   arbitrage      — cross-exchange arbitrage detection thresholds
 
+# Per-exchange configuration — each exchange has independent fees and slippage
 exchanges:
   binance:
     name: "Binance Futures"
-    fee_pct: 0.04
-    slippage_bps: 2.0
-    symbols:
+    fee_pct: 0.04              # Trading fee as percentage (0.04 = 0.04%)
+    slippage_bps: 2.0          # Simulated slippage in basis points (1 bps = 0.01%)
+    symbols:                   # Symbols available on this exchange
       - BTC/USDT
       - ETH/USDT
       - SOL/USDT
 
   bybit:
     name: "Bybit Derivatives"
-    fee_pct: 0.06
-    slippage_bps: 3.0
+    fee_pct: 0.06              # Higher fee than Binance
+    slippage_bps: 3.0          # More slippage = less favorable fills
     symbols:
       - BTC/USDT
       - ETH/USDT
@@ -29,48 +43,49 @@ exchanges:
       - ETH/USDT
       - SOL/USDT
 
-# Initial prices (USD)
+# Initial prices (USD) — starting reference prices for each symbol
 initial_prices:
   BTC/USDT: 65000.0
   ETH/USDT: 3500.0
   SOL/USDT: 150.0
 
-# Annualized volatility per symbol
+# Annualized volatility per symbol — controls price movement magnitude
+# Higher = more volatile. 0.75 = 75% annual volatility (typical for BTC)
 volatility:
   BTC/USDT: 0.75
-  ETH/USDT: 0.85
-  SOL/USDT: 1.10
+  ETH/USDT: 0.85              # ETH slightly more volatile than BTC
+  SOL/USDT: 1.10              # SOL is more volatile (smaller cap)
 
-# Market parameters
+# Market parameters — controls candle generation and simulation behavior
 market:
-  timeframe: "5m"
-  timeframe_seconds: 300
-  drift: 0.0001           # tiny bullish bias per candle
-  seed: 42                # reproducible mode (null = random)
-  warmup_candles: 200     # history generated before trading starts
-  order_book_depth: 20    # levels per side
+  timeframe: "5m"             # Candle interval: 1m | 3m | 5m | 15m | 30m | 1h | 4h | 1d
+  timeframe_seconds: 300      # Numeric equivalent (5m = 300s)
+  drift: 0.0001               # Tiny bullish bias per candle (0.01% per candle)
+  seed: 42                    # Random seed for reproducible mode (null = random each run)
+  warmup_candles: 200         # History generated before trading starts (for indicators)
+  order_book_depth: 20        # Order book levels per side (bids + asks)
 
-# Account simulation
+# Account simulation — starting balance and leverage for all exchanges
 account:
-  initial_balance: 10000.0
+  initial_balance: 10000.0    # Starting USDT balance per exchange
   currency: "USDT"
-  leverage: 10
+  leverage: 10                # Default leverage (1-50, higher = more risk)
 
-# Visualizer
+# Visualizer — CLI candle chart display (optional, for terminal monitoring)
 visualizer:
   enabled: true
-  refresh_interval: 0.5   # seconds between screen updates
-  chart_width: 60         # candle chart width in chars
-  chart_height: 15        # candle chart height in lines
+  refresh_interval: 0.5       # Seconds between screen updates
+  chart_width: 60             # Candle chart width in characters
+  chart_height: 15            # Candle chart height in lines
 
-# WebSocket server (feeds data to bots)
+# WebSocket server — streams data to AI Signal Bot, HFT Trade Bot, and Web UI
 websocket:
-  host: "localhost"
-  port: 8765
+  host: "localhost"           # Bind address (0.0.0.0 for external access)
+  port: 8765                  # WebSocket port (Prometheus metrics on port+1)
 
-# Arbitrage detection
+# Arbitrage detection — scans for cross-exchange price differences
 arbitrage:
-  fee_pct: 0.075          # average fee per side
-  slippage_bps: 2.0       # estimated slippage
-  min_spread_bps: 5.0     # minimum net spread to report (basis points)
-  opportunity_ttl: 30.0   # seconds before opportunity expires
+  fee_pct: 0.075              # Average fee per side (used for net spread calculation)
+  slippage_bps: 2.0           # Estimated slippage per trade
+  min_spread_bps: 5.0         # Minimum net spread to report as opportunity (basis points)
+  opportunity_ttl: 30.0       # Seconds before an opportunity expires from the list

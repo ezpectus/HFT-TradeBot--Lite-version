@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { Activity, Radio, TrendingUp, AlertTriangle, BarChart3, FlaskConical, History, ArrowRightLeft, Bot } from 'lucide-react'
+import { Activity, Radio, TrendingUp, AlertTriangle, BarChart3, FlaskConical, History, ArrowRightLeft, Bot, PanelRightClose, PanelRightOpen } from 'lucide-react'
 import { useExchangeData, useSignalData } from './hooks/useExchangeData'
 import { useMockExchangeData, useMockSignalData, IS_MOCK } from './hooks/useMockData'
 import { useToasts, ToastContainer } from './components/Toast'
@@ -25,10 +25,11 @@ import DetachablePanel from './components/DetachablePanel'
 import KeyboardHelp from './components/KeyboardHelp'
 import PanelContainer from './panels/PanelContainer'
 import { useDetachablePanels } from './hooks/useDetachablePanels'
-import { useIsMobile } from './hooks/useMediaQuery'
+import { useIsMobile, useIsTablet } from './hooks/useMediaQuery'
 import { aggregateCandles, TIMEFRAMES } from './utils/timeframes'
 import { useSoundAlerts } from './hooks/useSoundAlerts'
 import { useTheme } from './hooks/useTheme'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
 const EXCHANGES = ['binance', 'bybit', 'okx']
 const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
@@ -40,12 +41,14 @@ export default function App() {
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[0])
   const [simSpeed, setSimSpeed] = useState(1)
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [mobilePanel, setMobilePanel] = useState('chart') // chart | sidebar
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { detachPanel, updateDetached, isDetached } = useDetachablePanels()
 
   const exchange = IS_MOCK ? useMockExchangeData() : useExchangeData()
   const signals = IS_MOCK ? useMockSignalData() : useSignalData()
-  const { toasts, addToast, removeToast } = useToasts()
+  const { toasts, addToast, removeToast, clearAll } = useToasts()
   const { play: playSound, setEnabled: setSoundEnabled } = useSoundAlerts(true)
   const [soundOn, setSoundOn] = useState(true)
   const { theme, toggleTheme } = useTheme()
@@ -116,23 +119,24 @@ export default function App() {
   }, [exchange.newsEvent, addToast, playSound])
 
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
-      switch (e.key) {
-        case '1': setSelectedExchange(EXCHANGES[0]); break
-        case '2': setSelectedExchange(EXCHANGES[1]); break
-        case '3': setSelectedExchange(EXCHANGES[2]); break
-        case 'q': case 'Q': setSelectedSymbol(SYMBOLS[0]); break
-        case 'w': case 'W': setSelectedSymbol(SYMBOLS[1]); break
-        case 'e': case 'E': setSelectedSymbol(SYMBOLS[2]); break
-        case ' ': e.preventDefault(); setSimSpeed(s => s === 0 ? 1 : 0); break
-        default: break
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [])
+  useKeyboardShortcuts({
+    '1': () => setSelectedExchange(EXCHANGES[0]),
+    '2': () => setSelectedExchange(EXCHANGES[1]),
+    '3': () => setSelectedExchange(EXCHANGES[2]),
+    'q': () => setSelectedSymbol(SYMBOLS[0]),
+    'w': () => setSelectedSymbol(SYMBOLS[1]),
+    'e': () => setSelectedSymbol(SYMBOLS[2]),
+    ' ': () => setSimSpeed(s => s === 0 ? 1 : 0),
+    'a': () => setActiveTab('account'),
+    'b': () => setActiveTab('bots'),
+    's': () => setActiveTab('signals'),
+    'r': () => setActiveTab('arbitrage'),
+    'p': () => setActiveTab('prices'),
+    'f': () => setActiveTab('fills'),
+    'h': () => setActiveTab('history'),
+    't': () => setActiveTab('performance'),
+    'shift+\\': () => setSidebarCollapsed(s => !s),
+  })
 
   // Handle sim speed change
   const handleSpeedChange = useCallback((speed) => {
@@ -213,7 +217,7 @@ export default function App() {
       <MockModeBanner />
       <OnboardingTutorial />
       <KeyboardHelp />
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer toasts={toasts} onRemove={removeToast} onClearAll={clearAll} />
       <Header
         exchanges={EXCHANGES}
         symbols={SYMBOLS}
@@ -243,9 +247,10 @@ export default function App() {
 
       {/* Mobile panel toggle */}
       {isMobile && (
-        <div className="flex gap-1 p-1 bg-bg-800 border-b border-bg-600 shrink-0">
+        <div className="flex gap-1 p-1 bg-bg-800 border-b border-bg-600 shrink-0" role="tablist" aria-label="Mobile panel toggle">
           <button
             onClick={() => setMobilePanel('chart')}
+            aria-label="Show chart panel"
             className={'flex-1 py-1.5 text-xs font-medium rounded transition-colors ' +
               (mobilePanel === 'chart' ? 'bg-accent-blue text-white' : 'bg-bg-600 text-gray-400')}
           >
@@ -253,6 +258,7 @@ export default function App() {
           </button>
           <button
             onClick={() => setMobilePanel('sidebar')}
+            aria-label="Show tools panel"
             className={'flex-1 py-1.5 text-xs font-medium rounded transition-colors ' +
               (mobilePanel === 'sidebar' ? 'bg-accent-blue text-white' : 'bg-bg-600 text-gray-400')}
           >
@@ -269,7 +275,7 @@ export default function App() {
               <CandleChart candles={chartCandles} symbol={selectedSymbol} regime={signals.regime} fills={exchange.fills} selectedExchange={selectedExchange} />
             </div>
           </DetachablePanel>
-          <div className={'bg-bg-800 rounded-lg overflow-hidden ' + (isMobile ? 'h-[180px]' : 'h-[200px]')}>
+          <div className={'bg-bg-800 rounded-lg overflow-hidden ' + (isMobile ? 'h-[180px]' : isTablet ? 'h-[160px]' : 'h-[200px]')}>
             <OrderForm
               exchange={selectedExchange}
               symbol={selectedSymbol}
@@ -282,7 +288,18 @@ export default function App() {
         </div>
 
         {/* Right: Order Book + Tabs */}
-        <div className={'flex flex-col gap-1 shrink-0 ' + (isMobile ? (mobilePanel === 'sidebar' ? 'flex-1 overflow-y-auto' : 'hidden') : 'w-[340px]')}>
+        <div className={'flex flex-col gap-1 shrink-0 transition-all duration-200 ' + (isMobile ? (mobilePanel === 'sidebar' ? 'flex-1 overflow-y-auto' : 'hidden') : (sidebarCollapsed ? 'w-0 overflow-hidden' : (isTablet ? 'w-[300px]' : 'w-[340px]')))}>
+          {/* Collapse toggle button (desktop only) */}
+          {!isMobile && (
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              className="absolute right-1 top-1 z-10 p-1 rounded bg-bg-700 text-gray-500 hover:text-gray-300 hover:bg-bg-600 transition-colors"
+              title="Collapse sidebar (Shift+\)"
+              aria-label="Collapse sidebar"
+            >
+              <PanelRightClose size={14} />
+            </button>
+          )}
           <div className="h-[400px]">
             <DetachablePanel panelId="orderbook" onDetach={handleDetach} isDetached={isDetached('orderbook')}>
               <OrderBook
@@ -311,7 +328,7 @@ export default function App() {
 
           {/* Tabbed panels */}
           <div className="flex-1 bg-bg-800 rounded-lg overflow-hidden flex flex-col">
-            <div className="flex border-b border-bg-600 shrink-0">
+            <div className="flex border-b border-bg-600 shrink-0" role="tablist" aria-label="Trading panels">
               <TabButton active={activeTab === 'account'} onClick={() => setActiveTab('account')} icon={<Activity size={14} />}>
                 Account
               </TabButton>
@@ -340,7 +357,7 @@ export default function App() {
                 BT
               </TabButton>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto tab-content" key={activeTab}>
               {activeTab === 'account' && (
                 <>
                   <AccountPanel accounts={exchange.accounts} />
@@ -395,6 +412,18 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* Floating expand button when sidebar collapsed (desktop only) */}
+        {!isMobile && sidebarCollapsed && (
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            className="fixed right-2 top-20 z-50 p-2 rounded-lg bg-bg-700 border border-bg-600 text-gray-400 hover:text-gray-200 hover:bg-bg-600 transition-all shadow-lg"
+            title="Expand sidebar (Shift+\)"
+            aria-label="Expand sidebar"
+          >
+            <PanelRightOpen size={16} />
+          </button>
+        )}
       </div>
 
       <StatusBar

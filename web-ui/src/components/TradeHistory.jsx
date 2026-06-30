@@ -1,8 +1,15 @@
 import { useMemo, useCallback, useState } from 'react'
-import { History, TrendingUp, TrendingDown, Crown, AlertCircle, Download, NotebookPen, X, Check, FileText } from 'lucide-react'
+import { History, TrendingUp, TrendingDown, Crown, AlertCircle, Download, NotebookPen, X, Check, FileText, ArrowUpDown } from 'lucide-react'
 import { formatPrice, formatUsd, formatTime, colorForSide } from '../utils/format'
 import { useTradeJournal, tradeKey } from '../hooks/useTradeJournal'
 import VirtualList from './VirtualList'
+import { EmptyState } from './LoadingSkeleton'
+
+const SORT_OPTIONS = [
+  { id: 'date', label: 'Date' },
+  { id: 'pnl', label: 'PnL' },
+  { id: 'symbol', label: 'Symbol' },
+]
 
 function exportTradesCSV(trades) {
   const headers = ['Exchange', 'Symbol', 'Side', 'Entry Price', 'Exit Price', 'Quantity', 'PnL', 'Reason', 'Closed At']
@@ -31,6 +38,7 @@ export default function TradeHistory({ accounts }) {
   const journal = useTradeJournal()
   const [expandedKey, setExpandedKey] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
+  const [sortMode, setSortMode] = useState('date')
 
   const { allTrades, bestTrade, worstTrade, totalPnl, wins, losses } = useMemo(() => {
     const trades = []
@@ -39,7 +47,11 @@ export default function TradeHistory({ accounts }) {
         trades.push({ ...trade, exchange: exId })
       }
     }
-    trades.sort((a, b) => b.closed_at - a.closed_at)
+    trades.sort((a, b) => {
+      if (sortMode === 'pnl') return b.pnl - a.pnl
+      if (sortMode === 'symbol') return a.symbol.localeCompare(b.symbol)
+      return b.closed_at - a.closed_at
+    })
 
     let best = null, worst = null, pnl = 0, w = 0, l = 0
     for (const t of trades) {
@@ -50,14 +62,20 @@ export default function TradeHistory({ accounts }) {
     }
 
     return { allTrades: trades, bestTrade: best, worstTrade: worst, totalPnl: pnl, wins: w, losses: l }
-  }, [accounts])
+  }, [accounts, sortMode])
+
+  const cycleSort = () => {
+    const idx = SORT_OPTIONS.findIndex(o => o.id === sortMode)
+    setSortMode(SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length].id)
+  }
 
   if (!allTrades.length) {
     return (
-      <div className="p-4 text-center text-gray-500 text-sm">
-        <History size={24} className="mx-auto mb-2 opacity-50" />
-        No closed trades yet
-      </div>
+      <EmptyState
+        icon={History}
+        title="No closed trades yet"
+        subtitle="Trade history will appear here when positions are closed"
+      />
     )
   }
 
@@ -146,8 +164,18 @@ export default function TradeHistory({ accounts }) {
         </div>
       )}
 
-      <div className="text-xs font-medium text-gray-400 mb-1 px-1">
-        Closed Trades ({allTrades.length})
+      <div className="flex items-center justify-between mb-1 px-1">
+        <span className="text-xs font-medium text-gray-400">
+          Closed Trades ({allTrades.length})
+        </span>
+        <button
+          onClick={cycleSort}
+          className="flex items-center gap-0.5 text-[9px] text-gray-600 hover:text-gray-400 transition-colors"
+          title={`Sort by ${SORT_OPTIONS.find(o => o.id === sortMode)?.label || 'Date'}`}
+        >
+          <ArrowUpDown size={10} />
+          {SORT_OPTIONS.find(o => o.id === sortMode)?.label || 'Date'}
+        </button>
       </div>
       <VirtualList
         items={allTrades}

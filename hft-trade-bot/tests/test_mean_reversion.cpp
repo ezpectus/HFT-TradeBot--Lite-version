@@ -1,5 +1,5 @@
 // Tests: OU estimation, z-score, entry/exit signals, Kalman filter
-#include "../strategies/mean_reversion_v2.h"
+#include "../src/strategies/mean_reversion_v2.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>

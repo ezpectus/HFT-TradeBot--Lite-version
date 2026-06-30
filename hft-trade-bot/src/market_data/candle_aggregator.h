@@ -66,7 +66,7 @@ public:
 
     // Process a new trade tick
     void on_trade(uint64_t timestamp_ns, double price, double quantity) noexcept {
-        if (current_.open == 0.0) {
+        if (!bar_active_) {
             // First tick — initialize candle
             current_.open = price;
             current_.high = price;
@@ -79,6 +79,7 @@ public:
             bar_start_ns_ = timestamp_ns;
             bar_volume_ = quantity;
             bar_ticks_ = 1;
+            bar_active_ = true;
         } else {
             // Update candle
             current_.close = price;
@@ -109,16 +110,18 @@ public:
             current_ = Candle{};
             current_.symbol = symbol_;
             current_.exchange = exchange_;
+            bar_active_ = false;
         }
     }
 
     // Force-close current candle (e.g., on shutdown)
     void flush() noexcept {
-        if (current_.open != 0.0) {
+        if (bar_active_) {
             emit_candle();
             current_ = Candle{};
             current_.symbol = symbol_;
             current_.exchange = exchange_;
+            bar_active_ = false;
         }
     }
 
@@ -148,6 +151,7 @@ private:
     CandleCallback callback_;
 
     Candle current_{};
+    bool bar_active_{false};
     uint64_t bar_start_ns_{0};
     double bar_volume_{0.0};
     uint64_t bar_ticks_{0};

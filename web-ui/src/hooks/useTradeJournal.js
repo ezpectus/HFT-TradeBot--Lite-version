@@ -1,18 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
+import { useLocalStorage } from './useLocalStorage'
 
 const STORAGE_KEY = 'trading-sim-journal'
 
 export function useTradeJournal() {
-  const [notes, setNotes] = useState({})
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) setNotes(JSON.parse(saved))
-    } catch (e) {
-      console.warn('[useTradeJournal] Failed to load notes:', e)
-    }
-  }, [])
+  const [notes, setNotes] = useLocalStorage(STORAGE_KEY, {})
 
   const saveNote = useCallback((tradeKey, text) => {
     setNotes(prev => {
@@ -22,14 +14,9 @@ export function useTradeJournal() {
       } else {
         delete next[tradeKey]
       }
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      } catch (e) {
-        console.warn('[useTradeJournal] Failed to save note:', e)
-      }
       return next
     })
-  }, [])
+  }, [setNotes])
 
   const getNote = useCallback((tradeKey) => {
     return notes[tradeKey] || ''
@@ -39,14 +26,9 @@ export function useTradeJournal() {
     setNotes(prev => {
       const next = { ...prev }
       delete next[tradeKey]
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      } catch (e) {
-        console.warn('[useTradeJournal] Failed to delete note:', e)
-      }
       return next
     })
-  }, [])
+  }, [setNotes])
 
   const exportJournalCSV = useCallback((trades) => {
     const headers = ['Exchange', 'Symbol', 'Side', 'Entry Price', 'Exit Price', 'Quantity', 'PnL', 'Reason', 'Closed At', 'Note']

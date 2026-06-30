@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <string>
 #include <string_view>
 
@@ -190,9 +191,13 @@ private:
         char time_buf[32];
         std::time_t t = std::chrono::system_clock::to_time_t(now);
         std::tm tm_val;
+#ifdef _WIN32
+        gmtime_s(&tm_val, &t);
+#else
         gmtime_r(&t, &tm_val);
+#endif
         auto us = ts % 1000000;
-        snprintf(time_buf, sizeof(time_buf), "%04d%02d%02d-%02d:%02d:%02d.%06ld",
+        std::snprintf(time_buf, sizeof(time_buf), "%04d%02d%02d-%02d:%02d:%02d.%06lld",
                  tm_val.tm_year + 1900, tm_val.tm_mon + 1, tm_val.tm_mday,
                  tm_val.tm_hour, tm_val.tm_min, tm_val.tm_sec, us);
         msg.add_tag(tag::SendingTime, std::string_view(time_buf));

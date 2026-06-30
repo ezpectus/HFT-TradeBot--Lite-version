@@ -170,6 +170,11 @@ public:
     }
 
 private:
+    struct HistogramData {
+        std::array<std::atomic<int64_t>, 128> bin_counts{};
+        std::atomic<int64_t> total_count{0};
+    };
+
     int64_t percentile_from_histogram(const HistogramData& h, double pct, int64_t total) const noexcept {
         int64_t target = static_cast<int64_t>(static_cast<double>(total) * pct);
         int64_t cumulative = 0;
@@ -183,11 +188,6 @@ private:
         }
         return MAX_LATENCY_US;
     }
-
-    struct HistogramData {
-        std::array<std::atomic<int64_t>, 128> bin_counts{};
-        std::atomic<int64_t> total_count{0};
-    };
 
     struct AtomicStats {
         std::atomic<int64_t> count{0};

@@ -11,13 +11,25 @@
 #include <atomic>
 #include <cstring>
 
+#ifdef _WIN32
+  #ifndef NOMINMAX
+  #define NOMINMAX
+  #endif
+  #include <windows.h>
+#else
+  #include <fcntl.h>
+  #include <sys/mman.h>
+  #include <sys/stat.h>
+  #include <unistd.h>
+#endif
+
 namespace hft::ipc {
 
 // Latest-snapshot holder: a single MarketSnapshotMsg in shared memory
 // with an atomic sequence number for lock-free reads.
 // Writer increments seq before/after write; reader checks seq consistency.
 struct alignas(64) SnapshotSlot {
-    std::atomic<uint64_t seq;   // Incremented on each write
+    std::atomic<uint64_t> seq;   // Incremented on each write
     MarketSnapshotMsg data;
     uint8_t padding_[28];       // Fill to 64 bytes
 };
@@ -32,6 +44,24 @@ public:
     {
         const uint64_t total_size = sizeof(uint64_t) + max_symbols * sizeof(SnapshotSlot);
 
+#ifdef _WIN32
+        std::wstring wname(shm_name_.begin(), shm_name_.end());
+        if (create) {
+            handle_ = CreateFileMappingW(
+                INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE,
+                0, static_cast<DWORD>(total_size), wname.c_str());
+            if (!handle_) throw std::runtime_error("CreateFileMapping create failed: " + shm_name_);
+        } else {
+            handle_ = OpenFileMappingW(
+                FILE_MAP_ALL_ACCESS, FALSE, wname.c_str());
+            if (!handle_) throw std::runtime_error("OpenFileMapping failed: " + shm_name_);
+        }
+        void* ptr = MapViewOfFile(handle_, FILE_MAP_ALL_ACCESS, 0, 0, total_size);
+        if (!ptr) {
+            CloseHandle(handle_);
+            throw std::runtime_error("MapViewOfFile failed for: " + shm_name_);
+        }
+#else
         if (create) {
             fd_ = shm_open(shm_name_.c_str(), O_CREAT | O_RDWR, 0666);
             if (fd_ < 0) throw std::runtime_error("shm_open create failed: " + shm_name_);
@@ -50,22 +80,33 @@ public:
             close(fd_);
             throw std::runtime_error("mmap failed: " + shm_name_);
         }
+#endif
 
-        slots_ = static_cast<SnapshotSlot*>(ptr);
+        // Layout: [num_slots: uint64][SnapshotSlot 0][SnapshotSlot 1]...
+        // Store header pointer and offset slots_ past the 8-byte header
+        num_slots_ptr_ = static_cast<uint64_t*>(ptr);
+        slots_ = reinterpret_cast<SnapshotSlot*>(
+            static_cast<char*>(ptr) + sizeof(uint64_t));
         mapped_size_ = total_size;
 
         if (create) {
-            // Zero out all slots
-            std::memset(slots_, 0, total_size);
+            // Zero out all memory and write num_slots header
+            std::memset(ptr, 0, total_size);
+            *num_slots_ptr_ = max_symbols_;
         }
     }
 
     ~ShmMarketData() {
-        if (slots_) {
-            munmap(slots_, mapped_size_);
+        if (num_slots_ptr_) {
+#ifdef _WIN32
+            UnmapViewOfFile(num_slots_ptr_);
+            if (handle_) CloseHandle(handle_);
+#else
+            munmap(num_slots_ptr_, mapped_size_);
+            if (fd_ >= 0) close(fd_);
+            if (owns_) shm_unlink(shm_name_.c_str());
+#endif
         }
-        if (fd_ >= 0) close(fd_);
-        if (owns_) shm_unlink(shm_name_.c_str());
     }
 
     ShmMarketData(const ShmMarketData&) = delete;
@@ -124,8 +165,13 @@ private:
     std::string shm_name_;
     uint8_t max_symbols_;
     bool owns_;
+#ifdef _WIN32
+    HANDLE handle_{nullptr};
+#else
     int fd_{-1};
+#endif
     uint64_t mapped_size_{0};
+    uint64_t* num_slots_ptr_{nullptr};
     SnapshotSlot* slots_{nullptr};
 };
 

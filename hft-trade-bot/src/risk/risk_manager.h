@@ -182,8 +182,8 @@ public:
 
     // V2: Update position tracking after fill
     void on_fill(const std::string& /*symbol*/, const std::string& /*side*/,
-                 double /*qty*/, double price, double fee) {
-        total_exposure_.fetch_add(price, std::memory_order_relaxed);
+                 double qty, double price, double fee) {
+        total_exposure_.fetch_add(qty * price, std::memory_order_relaxed);
         daily_pnl_.fetch_sub(fee, std::memory_order_relaxed);
     }
 

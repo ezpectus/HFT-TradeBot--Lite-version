@@ -2,7 +2,7 @@
 # ===================================
 # This file tracks all development steps, completed and planned.
 
-## Project: Crypto Trading Simulator v1.0.0
+## Project: Crypto Trading Simulator v2.2.0
 
 ---
 
@@ -1715,13 +1715,59 @@
 - [x] Makefile: added `test-js`, `logs`, JS lint, coverage cleanup targets
 - [x] `.gitignore`: added CSV files, logs directory, trade logs, coverage, reorganize scripts
 - [x] `web-ui/.env.example`: added `VITE_MOCK_MODE` documentation
-- [x] LICENSE changed from MIT to Apache 2.0 (educational purpose, attribution required)
+- [x] LICENSE changed from MIT to Proprietary (All Rights Reserved, commercial use prohibited without permission)
 
 ### 40.6 Verification
 - [x] All documentation files verified and updated
 - [x] CI workflow verified: Python lint+test, C++ build+test, JS lint+test, Docker build
 - [x] Makefile targets verified: build, test, test-js, logs, clean, lint
 - [x] Logging verified: timestamped files + symlinks for all 3 services + CSV trade log
+
+---
+
+## Phase 41: Portfolio Killer Update [DONE]
+
+### 41.1 Dependency Installation & Startup
+- [x] `install-deps.bat` — one-command Windows dependency installer (Python + C++ + Node.js with automatic CMake detection and C++ build)
+- [x] `no-docker.bat install` / `no-docker.sh install` — install mode added to no-docker scripts
+- [x] CONTRIBUTING.md updated with streamlined install instructions (Windows, Linux, macOS, vcpkg, Homebrew)
+
+### 41.2 Production Infrastructure
+- [x] `docker-compose.prod.yml` — production Docker Compose with PostgreSQL 16, Redis 7, Prometheus, Grafana
+- [x] `Makefile.prod` — production Makefile with 13 targets (prod-up, prod-down, prod-build, prod-rebuild, prod-logs, prod-ps, prod-restart, prod-db-migrate, prod-db-backup, prod-monitor, prod-health, prod-clean, prod-stats)
+- [x] `docker.bat` / `docker.sh` — production Docker management scripts (up, down, build, logs, ps, restart)
+- [x] `.env.prod.example` — production environment template (exchange API keys, FIX gateway, PostgreSQL, Redis, Grafana, exchange mode)
+- [x] `monitoring/prometheus.yml` — Prometheus scrape configuration
+- [x] `monitoring/grafana/` — Grafana dashboard provisioning
+
+### 41.3 Web UI: PWA & Performance
+- [x] PWA via `vite-plugin-pwa` with Workbox caching, installable app, offline-capable, auto-update
+- [x] React.lazy code splitting — all 191+ panels lazy-loaded with Suspense fallbacks
+- [x] ChunkRetryBoundary — automatic retry on chunk load failure (3 retries with backoff)
+- [x] Preload-on-hover — hovering a category preloads all panels
+- [x] Web Worker — `compute.worker.js` for heavy indicator calculations
+- [x] Manual chunks in `vite.config.js` — `react-vendor`, `charts-vendor`, `icons-vendor`
+- [x] Performance hooks — `useDebouncedValue`, `useThrottledCallback`, `useBatchedUpdates`, `useIntersectionObserver`
+
+### 41.4 Web UI: Testing
+- [x] Vitest test framework with 9 test files (indicators, utils, GARCH, Kalman, HMM, cointegration, K-Means, registry, VirtualList)
+- [x] `@testing-library/react` + `@testing-library/jest-dom` for component testing
+- [x] `jsdom` environment for DOM-based tests
+- [x] `npm run test:coverage` — coverage reporting
+- [x] `npm run test:ui` — Vitest UI mode
+- [x] `npm run analyze` — bundle visualization via `vite-bundle-visualizer`
+
+### 41.5 Web UI: Accessibility
+- [x] WCAG AA compliance — ARIA roles, keyboard navigation, skip-to-content, focus-visible rings, reduced-motion support, aria-pressed, aria-live
+
+### 41.6 Documentation Updates
+- [x] CHANGELOG.md — added v2.2.0 entry with all Phase 41 changes
+- [x] README.md — updated Quick Start with install workflow, project structure, production deployment section
+- [x] ARCHITECTURE.md — updated with production infrastructure, PWA, Web Worker, performance hooks, tech stack
+- [x] WEB_UI.md — updated with PWA, React.lazy, ChunkRetryBoundary, Vitest, Web Worker, performance hooks, manual chunks, accessibility section
+- [x] SETUP.md — updated with no-docker install quick start, production deployment, project structure
+- [x] PROGRESS.md — added Phase 41
+- [x] FUTURE_TODO.md — marked React.lazy, PWA, accessibility, Vitest, component organization as completed
 
 ---
 
@@ -1732,17 +1778,11 @@
 - [ ] Multi-asset portfolio optimization
 - [ ] Machine learning signal enhancement
 - [ ] Order book depth replay from real L2 data
-- [ ] React.lazy conversion for all 191+ panels (code splitting)
 - [ ] TypeScript migration
 - [ ] Zustand state management
-- [ ] Accessibility (WCAG 2.1 AA)
 - [ ] Internationalization (i18n)
-- [ ] PWA (Progressive Web App) support
 - [ ] Custom theme builder
-- [ ] Prometheus metrics export
-- [ ] Docker Compose with all services + monitors
 - [ ] WebSocket reconnection with state sync (resume from last candle)
-- [ ] Component subfolder organization for 201+ files
 
 ---
 

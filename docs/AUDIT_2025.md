@@ -43,7 +43,7 @@
 - **ESLint:** Added to test-js CI job
 - **Mock mode:** `VITE_MOCK_MODE=true` generates synthetic data for standalone demo
 - **Netlify:** `netlify.toml` configured with redirects and security headers
-- **License:** Changed from MIT to Apache 2.0 (educational purpose, attribution required)
+- **License:** Changed from MIT to Proprietary (All Rights Reserved)
 
 ---
 

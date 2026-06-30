@@ -11,12 +11,32 @@ export default function TradeTimeline({ fills, symbol, selectedExchange }) {
       .reverse()
   }, [fills, symbol, selectedExchange])
 
+  const summary = useMemo(() => {
+    if (!recentFills.length) return { total: 0, buys: 0, sells: 0, volume: 0 }
+    let buys = 0, sells = 0, volume = 0
+    for (const f of recentFills) {
+      if (f.side === 'BUY') buys++
+      else sells++
+      volume += (f.price || 0) * (f.quantity || 0)
+    }
+    return { total: recentFills.length, buys, sells, volume }
+  }, [recentFills])
+
   return (
     <div className="bg-bg-700 rounded-lg p-2.5">
       <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase mb-2">
         <Clock size={12} className="text-accent-green" />
         Execution Timeline
       </div>
+
+      {recentFills.length > 0 && (
+        <div className="flex items-center gap-3 text-[9px] mb-2 pb-1.5 border-b border-bg-600">
+          <span className="text-gray-500">{summary.total} fills</span>
+          <span className="text-accent-green">{summary.buys} buy</span>
+          <span className="text-accent-red">{summary.sells} sell</span>
+          <span className="text-gray-400 font-mono ml-auto">${summary.volume.toFixed(2)}</span>
+        </div>
+      )}
 
       {recentFills.length === 0 ? (
         <div className="text-[10px] text-gray-600 italic py-2 text-center">No fills yet</div>

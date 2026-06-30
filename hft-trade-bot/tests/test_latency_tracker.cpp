@@ -1,5 +1,5 @@
 // Tests: Histogram buckets, percentile computation, latency budget enforcement
-#include "../execution/latency_tracker.h"
+#include "../src/execution/latency_tracker.h"
 #include <cassert>
 #include <cstdio>
 #include <cmath>

@@ -1,13 +1,31 @@
-import { TrendingUp, ArrowRight } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { TrendingUp, ArrowRight, Search } from 'lucide-react'
 import { formatPrice, formatUsd } from '../utils/format'
+import { EmptyState } from './LoadingSkeleton'
+import { useDebounce } from '../hooks/useDebounce'
 
 export default function ArbitragePanel({ arbitrage }) {
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
+
+  const filteredActive = useMemo(() => {
+    if (!arbitrage?.active) return []
+    if (!debouncedSearch) return arbitrage.active
+    const q = debouncedSearch.toUpperCase()
+    return arbitrage.active.filter(a =>
+      a.symbol?.toUpperCase().includes(q) ||
+      a.buy_exchange?.toUpperCase().includes(q) ||
+      a.sell_exchange?.toUpperCase().includes(q)
+    )
+  }, [arbitrage, debouncedSearch])
+
   if (!arbitrage || !arbitrage.active?.length) {
     return (
-      <div className="p-4 text-center text-gray-500 text-sm">
-        <TrendingUp size={24} className="mx-auto mb-2 opacity-50" />
-        No active arbitrage opportunities
-      </div>
+      <EmptyState
+        icon={TrendingUp}
+        title="No active arbitrage opportunities"
+        subtitle="Cross-exchange spreads will appear here when detected"
+      />
     )
   }
 
@@ -26,12 +44,25 @@ export default function ArbitragePanel({ arbitrage }) {
       </div>
 
       {/* Active opportunities */}
-      <div className="text-xs font-medium text-gray-400 px-1">
-        Active ({arbitrage.active_count || 0})
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs font-medium text-gray-400">
+          Active ({filteredActive.length}{debouncedSearch ? `/${arbitrage.active_count || 0}` : ''})
+        </span>
+        <div className="relative">
+          <Search size={10} className="absolute left-1 top-1/2 -translate-y-1/2 text-gray-600" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search..."
+            className="w-16 bg-bg-600 border border-bg-500 rounded pl-4 pr-1 py-0.5 text-[9px] text-gray-200 outline-none focus:border-accent-blue"
+            aria-label="Search arbitrage by symbol or exchange"
+          />
+        </div>
       </div>
 
       <div className="space-y-1">
-        {arbitrage.active.map((arb, i) => (
+        {filteredActive.map((arb, i) => (
           <div key={i} className="bg-bg-700 rounded p-2 text-xs">
             <div className="flex items-center justify-between mb-1">
               <span className="font-medium text-gray-200">{arb.symbol}</span>

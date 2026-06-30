@@ -192,3 +192,98 @@ class TestCombined:
         # Trailing: 105 - 2.1 = 102.9 > 100, should move
         assert "new_stop_loss" in actions
         assert abs(actions["new_stop_loss"] - 102.9) < 0.01
+
+
+class TestPeakTroughTracking:
+    """Regression tests for peak/trough tracking (especially SHORT side)."""
+
+    def test_long_peak_tracks_highest(self):
+        rm = RiskManager(RiskConfig(trailing_stop_enabled=False, breakeven_enabled=False))
+        state = make_state(entry=100, side="LONG", sl=95)
+        rm.update(state, current_price=105)
+        rm.update(state, current_price=103)
+        rm.update(state, current_price=108)
+        assert state.peak_price == 108
+
+    def test_long_trough_tracks_lowest(self):
+        rm = RiskManager(RiskConfig(trailing_stop_enabled=False, breakeven_enabled=False))
+        state = make_state(entry=100, side="LONG", sl=95)
+        rm.update(state, current_price=98)
+        rm.update(state, current_price=96)
+        rm.update(state, current_price=99)
+        assert state.trough_price == 96
+
+    def test_short_peak_tracks_lowest(self):
+        """For SHORT, peak = best (lowest) price."""
+        rm = RiskManager(RiskConfig(trailing_stop_enabled=False, breakeven_enabled=False))
+        state = make_state(entry=100, side="SHORT", sl=105)
+        rm.update(state, current_price=95)
+        rm.update(state, current_price=97)
+        rm.update(state, current_price=92)
+        assert state.peak_price == 92
+
+    def test_short_trough_tracks_highest(self):
+        """Regression: For SHORT, trough = worst (highest) price, not lowest."""
+        rm = RiskManager(RiskConfig(trailing_stop_enabled=False, breakeven_enabled=False))
+        state = make_state(entry=100, side="SHORT", sl=105)
+        rm.update(state, current_price=103)
+        rm.update(state, current_price=106)
+        rm.update(state, current_price=101)
+        # Trough should be 106 (worst = highest for SHORT), not 101
+        assert state.trough_price == 106
+
+
+class TestInitPosition:
+    def test_init_position_defaults(self):
+        rm = RiskManager()
+        state = rm.init_position(
+            entry_price=50000, side="long", stop_loss=49000,
+            take_profit=52000, quantity=0.5,
+        )
+        assert state.entry_price == 50000
+        assert state.side == "LONG"
+        assert state.current_stop_loss == 49000
+        assert state.original_stop_loss == 49000
+        assert state.peak_price == 50000
+        assert state.trough_price == 50000
+        assert state.breakeven_moved is False
+        assert state.partial_tp_executed is False
+        assert state.candles_held == 0
+
+    def test_init_position_with_atr(self):
+        rm = RiskManager()
+        state = rm.init_position(
+            entry_price=100, side="SHORT", stop_loss=105,
+            take_profit=90, quantity=2.0, atr=3.5,
+        )
+        assert state.atr == 3.5
+        assert state.side == "SHORT"
+
+    def test_init_position_uppercases_side(self):
+        rm = RiskManager()
+        state = rm.init_position(
+            entry_price=100, side="long", stop_loss=95,
+            take_profit=110, quantity=1.0,
+        )
+        assert state.side == "LONG"
+
+
+class TestCalcAtrFromCandle:
+    def test_basic_atr(self):
+        candle = {"high": 105, "low": 98, "close": 102, "prev_close": 100}
+        atr = RiskManager._calc_atr_from_candle(candle)
+        # TR = max(105-98, |105-100|, |98-100|) = max(7, 5, 2) = 7
+        assert atr == 7
+
+    def test_atr_with_gap(self):
+        candle = {"high": 110, "low": 105, "close": 108, "prev_close": 95}
+        atr = RiskManager._calc_atr_from_candle(candle)
+        # TR = max(110-105, |110-95|, |105-95|) = max(5, 15, 10) = 15
+        assert atr == 15
+
+    def test_atr_missing_prev_close(self):
+        candle = {"high": 105, "low": 98, "close": 102}
+        atr = RiskManager._calc_atr_from_candle(candle)
+        # prev_close defaults to close=102
+        # TR = max(7, |105-102|, |98-102|) = max(7, 3, 4) = 7
+        assert atr == 7

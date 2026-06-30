@@ -14,6 +14,7 @@ namespace hft {
 class PositionManager {
 public:
     void open_position(const Signal& signal, double quantity, const std::string& exchange) {
+        if (!signal.is_actionable()) return;
         std::lock_guard<std::mutex> lock(mutex_);
         Position pos;
         pos.symbol = signal.symbol;

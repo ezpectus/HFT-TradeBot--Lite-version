@@ -252,6 +252,14 @@ class PortfolioOptimizer:
             current_w = current_values.get(symbol, 0) / total_value
             if abs(current_w - target_w) > self.rebalance_threshold:
                 return True
+
+        # Check for symbols in current portfolio not in target weights
+        for symbol in current_values:
+            if symbol not in self.target_weights:
+                current_w = current_values[symbol] / total_value
+                if current_w > self.rebalance_threshold:
+                    return True
+
         return False
 
     def set_target_weights(self, weights: dict[str, float]) -> None:

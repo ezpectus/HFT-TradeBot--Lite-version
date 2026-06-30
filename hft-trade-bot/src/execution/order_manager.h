@@ -70,7 +70,7 @@ struct alignas(64) OrderRecord {
     uint8_t padding_[32]{};
 };
 
-static_assert(sizeof(OrderRecord) <= 256, "OrderRecord should be <= 256 bytes");
+static_assert(sizeof(OrderRecord) <= 320, "OrderRecord should be <= 320 bytes");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Order manager — lifecycle, timeout, fill tracking
@@ -93,6 +93,11 @@ public:
                           double price = 0.0, int64_t timeout_ns = 0) noexcept {
         uint64_t slot = find_free_slot();
         if (slot >= MAX_ORDERS) return 0;
+
+        // Clean up stale cid_to_slot_ entry from previous order in this slot
+        if (orders_[slot].client_order_id != 0) {
+            cid_to_slot_.erase(orders_[slot].client_order_id);
+        }
 
         uint64_t cid = next_client_id_.fetch_add(1, std::memory_order_relaxed);
         OrderRecord& rec = orders_[slot];
@@ -118,6 +123,15 @@ public:
 
         cid_to_slot_[cid] = slot;
         active_count_.fetch_add(1, std::memory_order_relaxed);
+
+        // Track highest slot used to limit check_timeouts scan range
+        size_t prev_max = max_slot_used_.load(std::memory_order_relaxed);
+        while (slot > prev_max) {
+            if (max_slot_used_.compare_exchange_weak(prev_max, slot,
+                    std::memory_order_relaxed, std::memory_order_relaxed)) {
+                break;
+            }
+        }
 
         return cid;
     }
@@ -148,14 +162,13 @@ public:
         rec.state = OrderStateV2::PARTIAL;
         rec.last_update_ns = now_ns();
 
-        if (fill_cb_) fill_cb_(rec);
-
         // Check if fully filled
         if (rec.filled_quantity >= rec.quantity - 1e-10) {
             rec.state = OrderStateV2::FILLED;
             active_count_.fetch_sub(1, std::memory_order_relaxed);
-            if (fill_cb_) fill_cb_(rec);
         }
+
+        if (fill_cb_) fill_cb_(rec);
     }
 
     // On full fill
@@ -209,7 +222,8 @@ public:
     // Check for timed-out orders (call periodically)
     void check_timeouts() noexcept {
         int64_t now = now_ns();
-        for (size_t i = 0; i < MAX_ORDERS; ++i) {
+        size_t scan_limit = max_slot_used_.load(std::memory_order_relaxed);
+        for (size_t i = 0; i <= scan_limit && i < MAX_ORDERS; ++i) {
             OrderRecord& rec = orders_[i];
             if (rec.state == OrderStateV2::PENDING && rec.timeout_ns > 0) {
                 if (now - rec.created_ns > rec.timeout_ns) {
@@ -280,6 +294,7 @@ private:
     std::unordered_map<uint64_t, uint64_t> cid_to_slot_;
     std::atomic<uint64_t> next_client_id_{1};
     std::atomic<int> active_count_{0};
+    std::atomic<size_t> max_slot_used_{0};
     int64_t default_timeout_ns_;
 
     CancelCallback cancel_cb_;

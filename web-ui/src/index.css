@@ -34,6 +34,23 @@
   --scrollbar-hover: #94a3b8;
 }
 
+/* Light theme — improve contrast for chart text and grid lines */
+.light .tv-lightweight-charts text {
+  fill: #475569 !important;
+}
+.light .tv-lightweight-charts .pane {
+  background-color: #ffffff !important;
+}
+
+/* Light theme — darker borders for better panel separation */
+.light .border-bg-600 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Light theme — ensure gray-500/600 text is readable on white bg */
+.light .text-gray-500 { color: #64748b !important; }
+.light .text-gray-600 { color: #475569 !important; }
+
 * {
   box-sizing: border-box;
 }
@@ -150,4 +167,106 @@ canvas {
 .animate-slide-in {
   will-change: transform, opacity;
   backface-visibility: hidden;
+}
+
+/* Toast auto-dismiss progress bar */
+@keyframes toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.toast-progress {
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* Fade-in for tab content */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Skeleton shimmer for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-700) 25%, var(--bg-600) 50%, var(--bg-700) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* Smooth hover transitions for interactive elements */
+button, a {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+/* Connection quality indicator */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+.pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+/* Tab content transition */
+.tab-content {
+  animation: fade-in 0.15s ease-out;
+}
+
+/* Number ticker — subtle scale on change */
+@keyframes number-tick {
+  0% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.number-tick {
+  animation: number-tick 0.3s ease-out;
+}
+
+/* Fade-in animation for metric cards and panels */
+@keyframes fadein {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fadein {
+  animation: fadein 0.2s ease-out;
+}
+
+/* ─── Tablet responsive breakpoints (768px–1024px) ─── */
+@media (max-width: 1024px) {
+  /* Compact tab bar for tablet */
+  .tab-bar {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  /* Tighter grid spacing on tablet */
+  .grid-cols-2 {
+    gap: 0.25rem;
+  }
+  /* Smaller font for data tables on tablet */
+  .data-table {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Stack grids vertically on mobile */
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  /* Hide non-essential columns on mobile */
+  .hide-mobile {
+    display: none !important;
+  }
 }

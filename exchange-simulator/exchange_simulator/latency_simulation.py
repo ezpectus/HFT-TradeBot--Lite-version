@@ -100,9 +100,10 @@ class LatencySimulator:
         # 80% success rate after first attempt, increasing
         success_prob = min(0.8 + 0.05 * self._reconnect_attempts, 0.99)
         if self._rng.random() < success_prob:
+            attempts = self._reconnect_attempts
             self._is_connected = True
             self._reconnect_attempts = 0
-            logger.info(f"[LatencySim] {self.exchange} reconnected after {self._reconnect_attempts} attempts")
+            logger.info(f"[LatencySim] {self.exchange} reconnected after {attempts} attempts")
             return True
         return False
 

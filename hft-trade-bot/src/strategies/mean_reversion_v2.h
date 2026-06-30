@@ -129,6 +129,7 @@ public:
         sig.half_life_seconds = half_life;
 
         double abs_z = std::abs(z);
+        last_z_ = z;
 
         if (abs_z >= config_.stop_z_threshold) {
             // Spread diverged too far — stop
@@ -190,7 +191,7 @@ private:
             return;
         }
 
-        // Compute mean (theta)
+        // Compute mean (theta) and sum of squares in a single pass
         double sum = 0.0;
         for (size_t i = 0; i < n; ++i) {
             sum += residuals_[i];
@@ -247,7 +248,7 @@ private:
         kappa = (1.0 - ar1_coef) / avg_dt;
         if (kappa < 0.0) kappa = 0.0;
 
-        // Compute residual standard deviation
+        // Compute residual standard deviation (reuses theta from first pass)
         double sq_sum = 0.0;
         for (size_t i = 0; i < n; ++i) {
             double diff = residuals_[i] - theta;

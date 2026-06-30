@@ -13,9 +13,14 @@
 #include <algorithm>
 #include <numeric>
 #include <sstream>
+#include <thread>
 #include <iomanip>
+#include <cstdlib>
 
 #if defined(_WIN32)
+  #ifndef NOMINMAX
+  #define NOMINMAX
+  #endif
   #include <windows.h>
   #include <processthreadsapi.h>
 #else

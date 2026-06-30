@@ -21,6 +21,9 @@ from typing import Optional
 
 import websockets
 
+from src.communication.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+from src.communication.metrics_server import MetricsCollector
+
 logger = logging.getLogger("ai_signal_bot.signal_publisher")
 
 
@@ -35,6 +38,8 @@ class SignalPublisher:
         self._max_history = 100
         self._server: Optional[websockets.WebSocketServer] = None
         self._running = False
+        self.circuit_breaker = CircuitBreaker()
+        self.metrics = MetricsCollector()
 
     @property
     def client_count(self) -> int:
@@ -67,6 +72,7 @@ class SignalPublisher:
     async def _handle_client(self, websocket, path=None) -> None:
         """Handle a connected HFT client."""
         self._clients.add(websocket)
+        self.metrics.set_ws_clients(len(self._clients))
         remote = websocket.remote_address if hasattr(websocket, "remote_address") else "unknown"
         logger.info(f"HFT client connected: {remote} (total: {len(self._clients)})")
 
@@ -92,11 +98,12 @@ class SignalPublisher:
                         result = await self._run_backtest(data)
                         await websocket.send(json.dumps(result))
                 except json.JSONDecodeError:
-                    pass
+                    logger.warning(f"Invalid JSON from {remote}: {message[:100]}")
         except websockets.ConnectionClosed:
             pass
         finally:
             self._clients.discard(websocket)
+            self.metrics.set_ws_clients(len(self._clients))
             logger.info(f"HFT client disconnected (total: {len(self._clients)})")
 
     async def broadcast_signal(self, signal: dict) -> None:
@@ -108,10 +115,20 @@ class SignalPublisher:
                 - entry_price, stop_loss, take_profit
                 - reason, timestamp
         """
+        if not self.circuit_breaker.allow_signal():
+            logger.warning(
+                f"Signal blocked by circuit breaker: {signal.get('direction', '?')} "
+                f"{signal.get('symbol', '?')} (state={self.circuit_breaker.state.value})"
+            )
+            self.metrics.record_signal_blocked()
+            return
+
+        signal = dict(signal)  # copy to avoid mutating caller's dict
         signal["timestamp"] = int(time.time())
         self._signal_history.append(signal)
         if len(self._signal_history) > self._max_history:
             self._signal_history = self._signal_history[-self._max_history:]
+        self.metrics.record_signal_sent()
 
         if not self._clients:
             return
@@ -279,6 +296,7 @@ class SignalPublisher:
             }
 
         logger.info(f"Backtest completed: {strategy_name}, {n_candles} candles, {len(results)} strategies")
+        self.metrics.record_backtest()
 
         return {
             "type": "backtest_result",

@@ -218,7 +218,7 @@ export default function MarketDepthReplay({ candles, orderbooks, fills, symbol, 
               </span>
             </div>
             <div className="h-2 bg-bg-800 rounded-full overflow-hidden flex">
-              <div className="bg-accent-green h-full transition-all" style={{ width: `${(frame.bidVol / (frame.bidVol + frame.askVol)) * 100}%` }} />
+              <div className="bg-accent-green h-full transition-all" style={{ width: `${frame.bidVol + frame.askVol > 0 ? (frame.bidVol / (frame.bidVol + frame.askVol)) * 100 : 50}%` }} />
               <div className="bg-accent-red h-full flex-1" />
             </div>
             <div className="flex justify-between text-[7px] text-gray-700 mt-0.5">
@@ -235,7 +235,7 @@ export default function MarketDepthReplay({ candles, orderbooks, fills, symbol, 
                 <div key={'a' + i} className="flex items-center justify-between text-[8px] bg-accent-red/5 px-1.5 py-px rounded-sm">
                   <span className="text-accent-red font-mono">{formatPrice(a.price)}</span>
                   <div className="flex-1 mx-2 h-1.5 bg-bg-600 rounded-full overflow-hidden">
-                    <div className="h-full bg-accent-red/40" style={{ width: `${(a.quantity / frame.asks[0].quantity) * 100}%` }} />
+                    <div className="h-full bg-accent-red/40" style={{ width: `${frame.asks[0]?.quantity > 0 ? (a.quantity / frame.asks[0].quantity) * 100 : 0}%` }} />
                   </div>
                   <span className="text-gray-500 font-mono">{a.quantity.toFixed(3)}</span>
                 </div>
@@ -247,7 +247,7 @@ export default function MarketDepthReplay({ candles, orderbooks, fills, symbol, 
                 <div key={'b' + i} className="flex items-center justify-between text-[8px] bg-accent-green/5 px-1.5 py-px rounded-sm">
                   <span className="text-accent-green font-mono">{formatPrice(b.price)}</span>
                   <div className="flex-1 mx-2 h-1.5 bg-bg-600 rounded-full overflow-hidden">
-                    <div className="h-full bg-accent-green/40" style={{ width: `${(b.quantity / frame.bids[0].quantity) * 100}%` }} />
+                    <div className="h-full bg-accent-green/40" style={{ width: `${frame.bids[0]?.quantity > 0 ? (b.quantity / frame.bids[0].quantity) * 100 : 0}%` }} />
                   </div>
                   <span className="text-gray-500 font-mono">{b.quantity.toFixed(3)}</span>
                 </div>

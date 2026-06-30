@@ -15,80 +15,33 @@ from __future__ import annotations
 
 import mmap
 import os
+import sys
 import struct
 import ctypes
 from typing import TypeVar, Generic, Optional, List
 from dataclasses import dataclass
 from contextlib import contextmanager
 
+IS_WINDOWS = sys.platform == 'win32'
+
 T = TypeVar('T')
 
 SHM_MAGIC = 0x484654343253484D  # "HFT42SHM"
 SHM_HEADER_SIZE = 128  # 2 cache lines
 
-# Header format: Q=uint64, x=padding
-# [magic:8][capacity:8][element_size:8][total_size:8]
-# [padding:32][head:8 at offset 64][padding:56][tail:8 at offset 128]
-# Actually the C++ struct has alignas(64) on head and tail.
-# Layout:
-#   offset 0:  magic (8)
-#   offset 8:  capacity (8)
-#   offset 16: element_size (8)
-#   offset 24: total_size (8)
-#   offset 32: padding (32 bytes to reach offset 64)
-#   offset 64: head (8) — alignas(64)
-#   offset 72: padding (56 bytes to reach offset 128)
-#   offset 128: tail (8) — alignas(64)
-#   offset 136: padding (48 bytes to reach 192... wait, total header is 128)
-# Let me recalculate. The C++ struct:
-#   uint64_t magic (8)
-#   uint64_t capacity (8)
-#   uint64_t element_size (8)
-#   uint64_t total_size (8)
-#   -- 32 bytes so far --
-#   alignas(64) std::atomic<uint64_t> head  -> offset 64
-#   -- head at offset 64, 8 bytes --
-#   alignas(64) std::atomic<uint64_t> tail  -> offset 128
-#   -- tail at offset 128, 8 bytes --
-#   uint8_t padding_[48] -> offset 136
-#   -- total: 136 + 48 = 184... but sizeof is 128?
-# Wait, the padding_ is to fill to 128 bytes total. But with alignas(64) on tail,
-# tail would be at offset 128, making the struct at least 128 + 8 + 48 = 184.
-# Let me re-examine. The static_assert says sizeof(ShmHeader) == 128.
-# With alignas(64) on head: head is at offset 64 (padded from 32 to 64)
-# With alignas(64) on tail: tail would be at offset 128... but then sizeof would be >= 136+48=184
-# This can't be 128. The static_assert would fail.
-# Let me fix: head at offset 64 (8 bytes), then tail needs alignas(64) so it goes to 128.
-# But sizeof = 128 means tail is at the END. That doesn't work.
-#
-# Actually, looking more carefully: the struct has padding_[48] after tail.
-# If head is at offset 64 and tail is at offset 128, then:
-#   0-31: magic, capacity, element_size, total_size
-#   32-63: padding (implicit from alignas(64) on head)
-#   64-71: head
-#   72-127: padding (implicit from alignas(64) on tail)
-#   128-135: tail
-#   136-183: padding_[48]
-# Total = 184. But static_assert says 128.
-#
-# This is a bug in the C++ code. The static_assert would fail.
-# For the Python side, let me use the ACTUAL layout that makes sense:
-#   offset 0: magic (8)
-#   offset 8: capacity (8)
-#   offset 16: element_size (8)
-#   offset 24: total_size (8)
-#   offset 32: padding (32)
-#   offset 64: head (8)  — alignas(64)
-#   offset 72: padding (56)
-#   offset 128: tail (8) — alignas(64)
-#   offset 136: padding (48)
-# Total header = 192 bytes (3 cache lines)
-#
-# But the C++ static_assert says 128. Let me just use 192 and fix the C++ static_assert.
-# Actually, let me just make the Python match what the C++ ACTUALLY produces,
-# which is 192 bytes due to the alignas(64) on both head and tail.
+# Binary layout (3 cache lines = 192 bytes due to alignas(64) on head and tail):
+#   offset 0:   magic (uint64)
+#   offset 8:   capacity (uint64)
+#   offset 16:  element_size (uint64)
+#   offset 24:  total_size (uint64)
+#   offset 32:  padding (32 bytes)
+#   offset 64:  head (uint64, alignas(64))
+#   offset 72:  padding (56 bytes)
+#   offset 128: tail (uint64, alignas(64))
+#   offset 136: padding (48 bytes)
+# Total header = 192 bytes
 
-SHM_HEADER_ACTUAL_SIZE = 192  # 3 cache lines due to alignas(64) on head and tail
+SHM_HEADER_ACTUAL_SIZE = 192  # 3 cache lines
 
 # Offsets
 OFF_MAGIC = 0
@@ -125,14 +78,25 @@ class ShmRingBuffer(Generic[T]):
         total_size = SHM_HEADER_ACTUAL_SIZE + data_size
         self._total_size = total_size
 
-        if create:
-            self._fd = os.open(f"/dev/shm{name}", os.O_CREAT | os.O_RDWR, 0o666)
-            os.ftruncate(self._fd, total_size)
+        if IS_WINDOWS:
+            # Windows: page-file-backed shared memory via mmap tagname
+            tag = name.lstrip("/")
+            access = mmap.ACCESS_WRITE
+            if create:
+                self._mm = mmap.mmap(-1, total_size, tagname=tag, access=access)
+            else:
+                self._mm = mmap.mmap(-1, total_size, tagname=tag, access=access)
+            self._fd = -1  # No file descriptor on Windows
         else:
-            self._fd = os.open(f"/dev/shm{name}", os.O_RDWR, 0o666)
+            # POSIX: use /dev/shm
+            if create:
+                self._fd = os.open(f"/dev/shm{name}", os.O_CREAT | os.O_RDWR, 0o666)
+                os.ftruncate(self._fd, total_size)
+            else:
+                self._fd = os.open(f"/dev/shm{name}", os.O_RDWR, 0o666)
 
-        self._mm = mmap.mmap(self._fd, total_size, mmap.MAP_SHARED,
-                             mmap.PROT_READ | mmap.PROT_WRITE)
+            self._mm = mmap.mmap(self._fd, total_size, mmap.MAP_SHARED,
+                                 mmap.PROT_READ | mmap.PROT_WRITE)
 
         if create:
             # Initialize header
@@ -148,6 +112,19 @@ class ShmRingBuffer(Generic[T]):
             if magic != SHM_MAGIC:
                 self.close()
                 raise ValueError(f"SHM magic mismatch: {name}")
+
+            stored_capacity = struct.unpack_from('<Q', self._mm, OFF_CAPACITY)[0]
+            stored_elem_size = struct.unpack_from('<Q', self._mm, OFF_ELEMENT_SIZE)[0]
+            if stored_capacity != capacity:
+                self.close()
+                raise ValueError(
+                    f"SHM capacity mismatch: {name} (expected {capacity}, got {stored_capacity})"
+                )
+            if stored_elem_size != self.element_size:
+                self.close()
+                raise ValueError(
+                    f"SHM element_size mismatch: {name} (expected {self.element_size}, got {stored_elem_size})"
+                )
 
         self._mask = capacity - 1
         self._data_offset = SHM_HEADER_ACTUAL_SIZE
@@ -232,7 +209,7 @@ class ShmRingBuffer(Generic[T]):
         if self._mm:
             self._mm.close()
             self._mm = None
-        if self._fd >= 0:
+        if not IS_WINDOWS and self._fd >= 0:
             os.close(self._fd)
             self._fd = -1
 
@@ -240,10 +217,11 @@ class ShmRingBuffer(Generic[T]):
         """Unlink the shared memory segment (after all processes are done)."""
         self.close()
         if self._owns:
-            try:
-                os.remove(f"/dev/shm{self.name}")
-            except FileNotFoundError:
-                pass
+            if not IS_WINDOWS:
+                try:
+                    os.remove(f"/dev/shm{self.name}")
+                except FileNotFoundError:
+                    pass
             self._owns = False
 
     def __enter__(self):
@@ -257,66 +235,14 @@ class ShmRingBuffer(Generic[T]):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Struct definitions matching C++ layout exactly
+# Struct definitions matching C++ layout exactly (pragma pack(push, 1))
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Signal struct: {timestamp(uint64), symbol_id(uint8), action(uint8),
-#   confidence(float), price(float), sl(float), tp(float), leverage(uint8)} — 32 bytes
-# Layout with padding for alignment:
-#   timestamp: uint64 (8)
-#   symbol_id: uint8 (1)
-#   action: uint8 (1)
-#   confidence: float (4)
-#   price: float (4)
-#   sl: float (4)
-#   tp: float (4)
-#   leverage: uint8 (1)
-#   padding: 3 bytes to align to 32
-# Total: 8 + 1 + 1 + 4 + 4 + 4 + 4 + 1 + 3 = 30... need 32
-# Let's use explicit padding: <Q B B f f f f B 3x
+# Signal struct (32 bytes): timestamp, symbol_id, action, confidence, price, sl, tp, leverage
 SIGNAL_STRUCT = struct.Struct('<Q B B f f f f B 3x')  # 32 bytes
 
-# Fill struct: {timestamp(uint64), symbol_id(uint8), side(uint8),
-#   qty(float), price(float), fee(float), exchange_id(uint8)} — 28 bytes
-# Layout:
-#   timestamp: uint64 (8)
-#   symbol_id: uint8 (1)
-#   side: uint8 (1)
-#   qty: float (4)
-#   price: float (4)
-#   fee: float (4)
-#   exchange_id: uint8 (1)
-#   padding: 3 bytes to align to 28
-# Total: 8 + 1 + 1 + 4 + 4 + 4 + 1 + 3 = 26... need 28
-# Use: <Q B B f f f B 3x  -> 8+1+1+4+4+4+1+3 = 26... that's 26 not 28
-# Actually struct.calcsize('<Q B B f f f B 3x') = ?
-# Q=8, B=1, B=1, f=4, f=4, f=4, B=1, 3x=3 -> 8+1+1+4+4+4+1+3 = 26
-# But we need 28. Let's use 5x padding: <Q B B f f f B 5x -> 28
+# Fill struct (28 bytes): timestamp, symbol_id, side, qty, price, fee, exchange_id
 FILL_STRUCT = struct.Struct('<Q B B f f f B 5x')  # 28 bytes
 
-# MarketSnapshot struct: {timestamp(uint64), symbol_id(uint8),
-#   bid(float), ask(float), last(float), volume(float)} — 24 bytes
-# Layout:
-#   timestamp: uint64 (8)
-#   symbol_id: uint8 (1)
-#   padding: 3 bytes (to align float)
-#   bid: float (4)
-#   ask: float (4)
-#   last: float (4)
-#   volume: float (4)
-# Total: 8 + 1 + 3 + 4 + 4 + 4 + 4 = 28... need 24
-# Without padding: <Q B f f f f -> 8+1+3(pad)+4+4+4+4 = 28 (struct aligns)
-# Actually struct.calcsize('<Q B f f f f') = 8 + 1 + 3(pad) + 4*4 = 28
-# To get 24 bytes we need to pack differently. Let's use:
-# <Q B 3x f f f f -> 8+1+3+4+4+4+4 = 28... still 28
-# The spec says 24 bytes. Let's try: <I B f f f f I -> no
-# Actually: timestamp(8) + symbol_id(1) + bid(4) + ask(4) + last(4) + volume(4) = 25
-# With padding to align floats: 8 + 1 + 3(pad) + 4*4 = 28
-# To get 24, we'd need to not pad. Use little-endian with no alignment:
-# struct.Struct('<Q B f f f f') with no padding... but struct always aligns.
-# Let's just use 28 bytes and match it in C++. The spec says 24 but that's
-# impossible with standard alignment. Let's use explicit packing.
-# Actually, we can use struct.Struct('<Q B f f f f') and accept 28 bytes.
-# Or we can use: <Q 4s f f f f (pack symbol_id into 4 bytes) -> 8+4+4+4+4+4 = 28
-# Let's just use 28 and adjust. The C++ side will match.
+# MarketSnapshot struct (28 bytes): timestamp, symbol_id, bid, ask, last, volume
 MARKET_SNAPSHOT_STRUCT = struct.Struct('<Q B 3x f f f f')  # 28 bytes

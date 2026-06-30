@@ -1,0 +1,370 @@
+/**
+ * Tests for useExchangeData and useSignalData hooks
+ * Tests: message handling (snapshot, candles, fills, arbitrage, replay),
+ * signal handling (signal_history, signal, regime, backtest), API methods
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook, act } from '@testing-library/react'
+
+// Mock useWebSocket before importing hooks that depend on it
+vi.mock('../hooks/useWebSocket', () => ({
+  useWebSocket: vi.fn(() => ({
+    connected: false,
+    send: vi.fn(),
+    latency: 0,
+    reconnects: 0,
+  })),
+}))
+
+import { useWebSocket } from '../hooks/useWebSocket'
+import { useExchangeData, useSignalData } from '../hooks/useExchangeData'
+
+describe('useExchangeData', () => {
+  let mockOnMessage
+  let mockSend
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSend = vi.fn()
+    useWebSocket.mockReturnValue({
+      connected: true,
+      send: mockSend,
+      latency: 50,
+      reconnects: 0,
+    })
+    // Capture onMessage callback from useWebSocket options
+    useWebSocket.mockImplementation((url, opts) => {
+      mockOnMessage = opts.onMessage
+      return { connected: true, send: mockSend, latency: 50, reconnects: 0 }
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns initial state with empty data', () => {
+    const { result } = renderHook(() => useExchangeData())
+    expect(result.current.candles).toEqual([])
+    expect(result.current.prices).toEqual({})
+    expect(result.current.accounts).toEqual({})
+    expect(result.current.arbitrage).toBeNull()
+    expect(result.current.fills).toEqual([])
+    expect(result.current.orderbooks).toEqual({})
+    expect(result.current.fundingRates).toEqual({})
+    expect(result.current.connected).toBe(true)
+  })
+
+  it('handles snapshot message with candles and prices', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({
+        type: 'snapshot',
+        candles: [
+          { exchange: 'binance', symbol: 'BTC/USDT', timestamp: 100, open: 50000, high: 50100, low: 49900, close: 50050, volume: 10 },
+        ],
+        prices: { 'BTC/USDT': 50050 },
+        accounts: { binance: { balance: 10000 } },
+        orderbooks: { 'BTC/USDT': { bids: [], asks: [] } },
+      })
+    })
+    expect(result.current.candles).toHaveLength(1)
+    expect(result.current.candles[0].close).toBe(50050)
+    expect(result.current.prices['BTC/USDT']).toBe(50050)
+    expect(result.current.accounts.binance.balance).toBe(10000)
+  })
+
+  it('handles fill message by prepending to fills list', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({ type: 'fill', order: { id: 1, symbol: 'BTC/USDT', qty: 0.5, price: 50000 } })
+    })
+    expect(result.current.fills).toHaveLength(1)
+    expect(result.current.fills[0].id).toBe(1)
+    expect(result.current.fills[0].received_at).toBeDefined()
+  })
+
+  it('limits fills to 50 entries', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      for (let i = 0; i < 55; i++) {
+        mockOnMessage({ type: 'fill', order: { id: i, symbol: 'BTC/USDT' } })
+      }
+    })
+    expect(result.current.fills).toHaveLength(50)
+    // Most recent should be first
+    expect(result.current.fills[0].id).toBe(54)
+  })
+
+  it('handles arbitrage_scan message', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({ type: 'arbitrage_scan', active: [{ symbol: 'BTC/USDT', spread_bps: 5 }] })
+    })
+    expect(result.current.arbitrage).not.toBeNull()
+    expect(result.current.arbitrage.active).toHaveLength(1)
+  })
+
+  it('handles replay_state message', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({ type: 'replay_state', paused: true })
+    })
+    expect(result.current.replayPaused).toBe(true)
+  })
+
+  it('handles replay_candles message', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({
+        type: 'replay_candles',
+        candles: [
+          { exchange: 'binance', symbol: 'BTC/USDT', timestamp: 200, open: 51000, high: 51100, low: 50900, close: 51050, volume: 15 },
+        ],
+      })
+    })
+    expect(result.current.candles.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('handles funding_rates in snapshot', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({
+        type: 'snapshot',
+        funding_rates: { 'BTC/USDT': 0.0001 },
+        candles_to_funding: 100,
+      })
+    })
+    expect(result.current.fundingRates['BTC/USDT']).toBe(0.0001)
+    expect(result.current.candlesToFunding).toBe(100)
+  })
+
+  it('handles news_event in snapshot', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({
+        type: 'snapshot',
+        news_event: { title: 'Fed rate decision', impact: 'high' },
+      })
+    })
+    expect(result.current.newsEvent).not.toBeNull()
+    expect(result.current.newsEvent.title).toBe('Fed rate decision')
+  })
+
+  it('handles weekend_mode in snapshot', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({ type: 'snapshot', weekend_mode: true })
+    })
+    expect(result.current.weekendMode).toBe(true)
+  })
+
+  it('merges candles by exchange+symbol+timestamp', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({
+        type: 'snapshot',
+        candles: [
+          { exchange: 'binance', symbol: 'BTC/USDT', timestamp: 100, close: 50000 },
+          { exchange: 'binance', symbol: 'BTC/USDT', timestamp: 100, close: 50050 },
+        ],
+      })
+    })
+    // Same key → should merge, not duplicate
+    expect(result.current.candles).toHaveLength(1)
+    expect(result.current.candles[0].close).toBe(50050)
+  })
+
+  it('sorts candles by timestamp', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({
+        type: 'snapshot',
+        candles: [
+          { exchange: 'binance', symbol: 'BTC/USDT', timestamp: 200, close: 51000 },
+          { exchange: 'binance', symbol: 'BTC/USDT', timestamp: 100, close: 50000 },
+        ],
+      })
+    })
+    expect(result.current.candles[0].timestamp).toBe(100)
+    expect(result.current.candles[1].timestamp).toBe(200)
+  })
+
+  it('submitOrder sends order message via websocket', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      result.current.submitOrder({ symbol: 'BTC/USDT', side: 'BUY', qty: 1.0 })
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'order', symbol: 'BTC/USDT', side: 'BUY', qty: 1.0 })
+  })
+
+  it('closePosition sends close_position message', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      result.current.closePosition('binance', 'BTC/USDT')
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'close_position', exchange: 'binance', symbol: 'BTC/USDT' })
+  })
+
+  it('sendSpeedChange sends set_speed message', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      result.current.sendSpeedChange(2.0)
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'set_speed', speed: 2.0 })
+  })
+
+  it('sendConfigUpdate sends update_config message', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      result.current.sendConfigUpdate({ leverage: 5 })
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'update_config', updates: { leverage: 5 } })
+  })
+
+  it('toggleReplay sends pause when not paused', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      result.current.toggleReplay()
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'replay', action: 'pause' })
+  })
+
+  it('toggleReplay sends resume when paused', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({ type: 'replay_state', paused: true })
+    })
+    act(() => {
+      result.current.toggleReplay()
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'replay', action: 'resume' })
+  })
+
+  it('scrubReplay sends scrub message', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      result.current.scrubReplay(5000)
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'replay', action: 'scrub', offset: 5000 })
+  })
+
+  it('ignores unknown message types', () => {
+    const { result } = renderHook(() => useExchangeData())
+    act(() => {
+      mockOnMessage({ type: 'unknown_type', data: 'test' })
+    })
+    // State should remain unchanged
+    expect(result.current.candles).toEqual([])
+    expect(result.current.fills).toEqual([])
+  })
+})
+
+describe('useSignalData', () => {
+  let mockOnMessage
+  let mockSend
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSend = vi.fn()
+    useWebSocket.mockImplementation((url, opts) => {
+      mockOnMessage = opts.onMessage
+      return { connected: true, send: mockSend, latency: 30, reconnects: 0 }
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns initial state with empty signals', () => {
+    const { result } = renderHook(() => useSignalData())
+    expect(result.current.signals).toEqual([])
+    expect(result.current.regime).toBeNull()
+    expect(result.current.backtestResult).toBeNull()
+    expect(result.current.connected).toBe(true)
+  })
+
+  it('handles signal_history message', () => {
+    const { result } = renderHook(() => useSignalData())
+    act(() => {
+      mockOnMessage({
+        type: 'signal_history',
+        signals: [
+          { symbol: 'BTC/USDT', direction: 'LONG', confidence: 0.85 },
+          { symbol: 'ETH/USDT', direction: 'SHORT', confidence: 0.70 },
+        ],
+      })
+    })
+    expect(result.current.signals).toHaveLength(2)
+    expect(result.current.signals[0].symbol).toBe('BTC/USDT')
+  })
+
+  it('handles single signal message by prepending', () => {
+    const { result } = renderHook(() => useSignalData())
+    act(() => {
+      mockOnMessage({ type: 'signal_history', signals: [{ symbol: 'BTC/USDT', direction: 'LONG' }] })
+    })
+    act(() => {
+      mockOnMessage({ type: 'signal', symbol: 'ETH/USDT', direction: 'SHORT', confidence: 0.75 })
+    })
+    expect(result.current.signals).toHaveLength(2)
+    expect(result.current.signals[0].symbol).toBe('ETH/USDT')
+  })
+
+  it('limits signals to 50 entries', () => {
+    const { result } = renderHook(() => useSignalData())
+    act(() => {
+      for (let i = 0; i < 55; i++) {
+        mockOnMessage({ type: 'signal', symbol: `SYM${i}`, direction: 'LONG' })
+      }
+    })
+    expect(result.current.signals).toHaveLength(50)
+    expect(result.current.signals[0].symbol).toBe('SYM54')
+  })
+
+  it('handles market_regime message', () => {
+    const { result } = renderHook(() => useSignalData())
+    act(() => {
+      mockOnMessage({ type: 'market_regime', regime: 'trending', confidence: 0.90 })
+    })
+    expect(result.current.regime).not.toBeNull()
+    expect(result.current.regime.regime).toBe('trending')
+  })
+
+  it('handles backtest_result message', () => {
+    const { result } = renderHook(() => useSignalData())
+    act(() => {
+      mockOnMessage({ type: 'backtest_result', totalTrades: 100, winRate: 0.65 })
+    })
+    expect(result.current.backtestResult).not.toBeNull()
+    expect(result.current.backtestResult.totalTrades).toBe(100)
+  })
+
+  it('calls onBacktestResult callback when provided', () => {
+    const callback = vi.fn()
+    renderHook(() => useSignalData({ onBacktestResult: callback }))
+    act(() => {
+      mockOnMessage({ type: 'backtest_result', totalTrades: 50 })
+    })
+    expect(callback).toHaveBeenCalledWith({ type: 'backtest_result', totalTrades: 50 })
+  })
+
+  it('ignores unknown message types', () => {
+    const { result } = renderHook(() => useSignalData())
+    act(() => {
+      mockOnMessage({ type: 'unknown', data: 'test' })
+    })
+    expect(result.current.signals).toEqual([])
+    expect(result.current.regime).toBeNull()
+  })
+
+  it('sendSignalMessage is exposed', () => {
+    const { result } = renderHook(() => useSignalData())
+    expect(typeof result.current.sendSignalMessage).toBe('function')
+    act(() => {
+      result.current.sendSignalMessage({ type: 'test' })
+    })
+    expect(mockSend).toHaveBeenCalledWith({ type: 'test' })
+  })
+})

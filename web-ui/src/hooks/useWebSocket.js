@@ -171,8 +171,8 @@ export function useWebSocket(url, options = {}) {
         }
       }
 
-      ws.onerror = (e) => {
-        setError('WebSocket error')
+      ws.onerror = (_e) => {
+        setError(`WebSocket error: ${url} (reconnect #${reconnectCount.current})`)
       }
 
       ws.onclose = () => {

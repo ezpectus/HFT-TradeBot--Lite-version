@@ -64,10 +64,18 @@ public:
         if (elapsed <= 0.0) return;
 
         double add = elapsed * rate_;
-        double current = tokens_.load(std::memory_order_relaxed);
-        double new_tokens = std::min(burst_, current + add);
 
-        tokens_.store(new_tokens, std::memory_order_relaxed);
+        // CAS loop: atomically update tokens_ to prevent lost refills under concurrency
+        double current = tokens_.load(std::memory_order_relaxed);
+        while (true) {
+            double new_tokens = std::min(burst_, current + add);
+            if (tokens_.compare_exchange_weak(current, new_tokens,
+                    std::memory_order_relaxed, std::memory_order_relaxed)) {
+                break;
+            }
+            // current was updated by CAS failure; retry with new value
+        }
+
         last_refill_ns_.store(now_ns, std::memory_order_relaxed);
     }
 
@@ -167,9 +175,9 @@ public:
             return {false, 6, "Order rate limit exceeded"};
         }
 
-        // 8. Margin check
+        // 8. Margin check (keep min_margin_ratio fraction as buffer)
         double required_margin = order_notional / std::max(1, leverage);
-        if (required_margin > available_margin * config_.min_margin_ratio) {
+        if (required_margin > available_margin * (1.0 - config_.min_margin_ratio)) {
             return {false, 7, "Insufficient margin"};
         }
 

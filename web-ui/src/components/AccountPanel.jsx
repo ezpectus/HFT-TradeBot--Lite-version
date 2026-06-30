@@ -1,19 +1,30 @@
-import { Wallet, TrendingUp, TrendingDown, BarChart3, Trophy } from 'lucide-react'
+import { useState } from 'react'
+import { Wallet, TrendingUp, TrendingDown, BarChart3, Trophy, ArrowUpDown } from 'lucide-react'
 import { formatUsd, formatPct } from '../utils/format'
+import { EmptyState } from './LoadingSkeleton'
+import { useAnimatedNumber } from '../hooks/useAnimatedNumber'
+
+const SORT_OPTIONS = [
+  { id: 'pnl', label: 'PnL' },
+  { id: 'winRate', label: 'Win%' },
+  { id: 'balance', label: 'Balance' },
+]
 
 export default function AccountPanel({ accounts }) {
   const exchangeIds = Object.keys(accounts)
+  const [sortMode, setSortMode] = useState('pnl')
 
   if (!exchangeIds.length) {
     return (
-      <div className="p-4 text-center text-gray-500 text-sm">
-        <Wallet size={24} className="mx-auto mb-2 opacity-50" />
-        Waiting for account data...
-      </div>
+      <EmptyState
+        icon={Wallet}
+        title="Waiting for account data"
+        subtitle="Account balances and positions will appear here when connected"
+      />
     )
   }
 
-  // Build leaderboard sorted by total PnL
+  // Build leaderboard sorted by selected metric
   const leaderboard = exchangeIds
     .map(exId => ({
       exId,
@@ -22,7 +33,16 @@ export default function AccountPanel({ accounts }) {
       trades: accounts[exId].total_trades || 0,
       winRate: accounts[exId].win_rate || 0,
     }))
-    .sort((a, b) => b.pnl - a.pnl)
+    .sort((a, b) => {
+      if (sortMode === 'winRate') return b.winRate - a.winRate
+      if (sortMode === 'balance') return b.balance - a.balance
+      return b.pnl - a.pnl
+    })
+
+  const cycleSort = () => {
+    const idx = SORT_OPTIONS.findIndex(o => o.id === sortMode)
+    setSortMode(SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length].id)
+  }
 
   return (
     <div className="p-2 space-y-2">
@@ -31,6 +51,15 @@ export default function AccountPanel({ accounts }) {
         <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase mb-1.5">
           <Trophy size={12} className="text-accent-yellow" />
           Exchange Leaderboard
+          <div className="flex-1" />
+          <button
+            onClick={cycleSort}
+            className="flex items-center gap-0.5 text-gray-600 hover:text-gray-400 transition-colors normal-case"
+            title={`Sort by ${SORT_OPTIONS.find(o => o.id === sortMode)?.label || 'PnL'}`}
+          >
+            <ArrowUpDown size={10} />
+            {SORT_OPTIONS.find(o => o.id === sortMode)?.label || 'PnL'}
+          </button>
         </div>
         <div className="space-y-1">
           {leaderboard.map((item, i) => {
@@ -76,11 +105,12 @@ export default function AccountPanel({ accounts }) {
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <Stat label="Balance" value={formatUsd(acc.balance)} />
-              <Stat label="Equity" value={formatUsd(acc.equity)} />
-              <Stat
+              <AnimatedStat label="Balance" value={acc.balance} format="usd" />
+              <AnimatedStat label="Equity" value={acc.equity} format="usd" />
+              <AnimatedStat
                 label="Total PnL"
-                value={formatUsd(acc.total_pnl)}
+                value={acc.total_pnl}
+                format="usd"
                 color={pnlPositive ? 'text-accent-green' : 'text-accent-red'}
               />
               <Stat label="Fees" value={formatUsd(acc.total_fees)} color="text-gray-400" />
@@ -120,6 +150,17 @@ function Stat({ label, value, color = 'text-gray-200' }) {
     <div className="flex flex-col">
       <span className="text-gray-500 text-[10px] uppercase tracking-wide">{label}</span>
       <span className={`font-mono font-medium ${color}`}>{value}</span>
+    </div>
+  )
+}
+
+function AnimatedStat({ label, value, format = 'usd', color = 'text-gray-200' }) {
+  const animatedValue = useAnimatedNumber(value)
+  const displayValue = format === 'usd' ? formatUsd(animatedValue) : String(animatedValue)
+  return (
+    <div className="flex flex-col">
+      <span className="text-gray-500 text-[10px] uppercase tracking-wide">{label}</span>
+      <span className={`font-mono font-medium ${color} number-tick`}>{displayValue}</span>
     </div>
   )
 }

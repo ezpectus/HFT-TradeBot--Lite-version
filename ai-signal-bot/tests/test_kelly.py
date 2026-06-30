@@ -119,3 +119,39 @@ class TestKellyPositionSizer:
         r_high = sizer.calculate(balance=10000, entry_price=100, stop_loss=95, confidence=90)
         r_low = sizer.calculate(balance=10000, entry_price=100, stop_loss=95, confidence=30)
         assert r_high.risk_amount >= r_low.risk_amount
+
+    def test_min_risk_pct_not_applied_for_small_edge(self):
+        """Regression: min_risk_pct should not force large positions on near-zero edge."""
+        # Barely positive Kelly: win_rate=0.51, avg_win=100, avg_loss=100
+        # kelly = (0.51 * 1 - 0.49) / 1 = 0.02
+        # adjusted = 0.02 * 0.5 = 0.01 → risk_pct = 1.0
+        # With fix: adjusted >= 0.01 → min_risk_pct applies
+        # But with very low confidence: adjusted < 0.01 → min_risk_pct should NOT apply
+        sizer = KellyPositionSizer(
+            win_rate=0.51, avg_win=100, avg_loss=100,
+            kelly_fraction=0.5, max_risk_pct=5.0,
+            min_risk_pct=2.0,
+        )
+        # Low confidence scales adjusted below 0.01
+        result = sizer.calculate(
+            balance=10000, entry_price=100, stop_loss=95,
+            confidence=0.3,  # adjusted = 0.01 * 0.3 = 0.003 < 0.01
+        )
+        # risk_pct should be 0.3% (not forced to 2% min)
+        expected_risk = 10000 * 0.3 / 100.0
+        assert result.risk_amount <= expected_risk + 1.0
+
+    def test_min_risk_pct_applied_for_meaningful_edge(self):
+        """min_risk_pct should still apply when Kelly edge is meaningful."""
+        sizer = KellyPositionSizer(
+            win_rate=0.60, avg_win=150, avg_loss=100,
+            kelly_fraction=0.5, max_risk_pct=50.0,
+            min_risk_pct=3.0,
+        )
+        result = sizer.calculate(
+            balance=10000, entry_price=100, stop_loss=95,
+            confidence=1.0,
+        )
+        # Kelly edge is large → min_risk_pct should apply
+        min_risk = 10000 * 3.0 / 100.0
+        assert result.risk_amount >= min_risk - 1.0

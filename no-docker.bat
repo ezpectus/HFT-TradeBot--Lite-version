@@ -40,6 +40,15 @@ goto :usage
 :install
 echo [INFO] Installing dependencies...
 echo.
+
+REM Clone websocketpp if not present
+if not exist "%PROJECT_ROOT%websocketpp\websocketpp\client.hpp" (
+    echo [INFO] Cloning websocketpp (header-only library)...
+    cd /d "%PROJECT_ROOT%"
+    git clone https://github.com/zaphoyd/websocketpp.git
+    echo.
+)
+
 echo [1/4] Exchange Simulator...
 cd /d "%PROJECT_ROOT%exchange-simulator"
 pip install -r requirements.txt
@@ -53,10 +62,11 @@ cd /d "%PROJECT_ROOT%hft-trade-bot"
 where cmake >nul 2>&1
 if errorlevel 1 (
     echo [WARN] CMake not found. Skipping C++ build.
+    echo        Install CMake from https://cmake.org/download/
 ) else (
     if not exist build mkdir build
     cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_PCH=ON -DUSE_CCACHE=ON
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DUSE_PCH=ON -DUSE_CCACHE=ON -DWEBSOCKETPP_INCLUDE_DIR="%PROJECT_ROOT%websocketpp" -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
     cmake --build . --config Release -j
     cd ..
 )
@@ -88,9 +98,11 @@ REM Wait for signal bot
 timeout /t 3 /nobreak >nul
 
 REM Window 3: HFT Trade Bot
-echo [3/4] Starting HFT Trade Bot on :8767...
+echo [3/4] Starting HFT Trade Bot (C++ engine)...
 if exist "%PROJECT_ROOT%hft-trade-bot\build\Release\hft_trade_bot.exe" (
     start "HFT Trade Bot" cmd /k "cd /d %PROJECT_ROOT%hft-trade-bot && build\Release\hft_trade_bot.exe config\config.yaml"
+) else if exist "%PROJECT_ROOT%hft-trade-bot\build\hft_trade_bot.exe" (
+    start "HFT Trade Bot" cmd /k "cd /d %PROJECT_ROOT%hft-trade-bot && build\hft_trade_bot.exe config\config.yaml"
 ) else if exist "%PROJECT_ROOT%hft-trade-bot\build\hft_trade_bot" (
     start "HFT Trade Bot" cmd /k "cd /d %PROJECT_ROOT%hft-trade-bot && build\hft_trade_bot config\config.yaml"
 ) else (
@@ -105,7 +117,7 @@ echo.
 echo [OK] All services started in separate windows!
 echo   - Exchange Simulator:  ws://localhost:8765
 echo   - AI Signal Bot:       ws://localhost:8766
-echo   - HFT Trade Bot:       ws://localhost:8767
+echo   - HFT Trade Bot:       C++ engine (connects to :8765 + :8766)
 echo   - Web UI:              http://localhost:3000
 echo.
 echo Close the terminal windows to stop each service.

@@ -20,6 +20,12 @@ export default function OrderForm({ exchange, symbol, currentPrice, onSubmit, co
 
   const availBalance = balance || 10000
 
+  const qtyNum = parseFloat(quantity) || 0
+  const qtyError = qtyNum <= 0 ? 'Quantity must be > 0' : ''
+  const marginNeeded = qtyNum * currentPrice / leverage
+  const marginExceeds = marginNeeded > availBalance
+  const canSubmit = connected && !submitting && qtyNum > 0 && !marginExceeds
+
   const setQtyFromBalance = (pct) => {
     if (!currentPrice || currentPrice <= 0) return
     const notional = availBalance * pct / 100
@@ -29,14 +35,14 @@ export default function OrderForm({ exchange, symbol, currentPrice, onSubmit, co
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!connected) return
+    if (!connected || qtyNum <= 0) return
 
     setSubmitting(true)
     const order = {
       exchange,
       symbol,
       side,
-      quantity: parseFloat(quantity),
+      quantity: qtyNum,
       order_type: orderType,
     }
     if (stopLoss) order.stop_loss = parseFloat(stopLoss)
@@ -48,7 +54,7 @@ export default function OrderForm({ exchange, symbol, currentPrice, onSubmit, co
     setTimeout(() => setLastMsg(null), 3000)
   }
 
-  const notional = (parseFloat(quantity) || 0) * currentPrice
+  const notional = qtyNum * currentPrice
 
   return (
     <div className="h-full flex flex-col">
@@ -109,8 +115,22 @@ export default function OrderForm({ exchange, symbol, currentPrice, onSubmit, co
             step="0.001"
             value={quantity}
             onChange={e => setQuantity(e.target.value)}
-            className="w-full bg-bg-600 text-gray-200 text-sm rounded px-2 py-1.5 border border-bg-500 focus:outline-none focus:border-accent-blue font-mono"
+            className={`w-full bg-bg-600 text-gray-200 text-sm rounded px-2 py-1.5 border font-mono focus:outline-none transition-colors ${
+              qtyError ? 'border-accent-red focus:border-accent-red' : 'border-bg-500 focus:border-accent-blue'
+            }`}
           />
+          {qtyError && (
+            <div className="text-[10px] text-accent-red mt-0.5 flex items-center gap-1">
+              <AlertTriangle size={9} />
+              {qtyError}
+            </div>
+          )}
+          {marginExceeds && !qtyError && (
+            <div className="text-[10px] text-accent-yellow mt-0.5 flex items-center gap-1">
+              <AlertTriangle size={9} />
+              Margin exceeds available balance
+            </div>
+          )}
           {/* Quick size buttons */}
           <div className="flex gap-1 mt-1">
             {[25, 50, 75, 100].map(pct => (
@@ -255,7 +275,8 @@ export default function OrderForm({ exchange, symbol, currentPrice, onSubmit, co
         {/* Submit */}
         <button
           type="submit"
-          disabled={!connected || submitting}
+          disabled={!canSubmit}
+          title={!connected ? 'Not connected' : marginExceeds ? 'Margin exceeds balance' : qtyError ? 'Invalid quantity' : ''}
           className={`py-2 text-sm font-semibold rounded transition-all ${
             side === 'BUY'
               ? 'bg-accent-green hover:bg-green-600 text-white'

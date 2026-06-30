@@ -1,5 +1,5 @@
 // Tests: Avellaneda-Stoikov quotes, inventory skew, adverse selection
-#include "../strategies/market_making_v2.h"
+#include "../src/strategies/market_making_v2.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>

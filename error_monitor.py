@@ -14,6 +14,15 @@ from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
+# Enable ANSI colors on Windows (VT100 processing)
+if sys.platform == 'win32':
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    except Exception:
+        pass
+
 LOG_SOURCES = {
     "Exchange Sim": os.path.join(ROOT, "exchange-simulator", "logs", "exchange_simulator.log"),
     "AI Signal Bot": os.path.join(ROOT, "ai-signal-bot", "logs", "ai_signal_bot.log"),

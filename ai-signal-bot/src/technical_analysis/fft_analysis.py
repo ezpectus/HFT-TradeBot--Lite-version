@@ -10,7 +10,6 @@ Applications:
 - Power spectrum for volatility regime detection
 """
 import math
-from typing import tuple
 
 
 def _fft(a: list[complex]) -> list[complex]:

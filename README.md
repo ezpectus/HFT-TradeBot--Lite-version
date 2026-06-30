@@ -1,8 +1,9 @@
 # HFT Trading System
 
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)
+![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-61dafb.svg)
 ![Coverage](https://img.shields.io/badge/coverage-60%2B%20tests-6e9f18.svg)
-![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
+![License](https://img.shields.io/badge/license-Proprietary-red.svg)
 ![Live Demo](https://img.shields.io/badge/demo-coming%20soon-orange.svg)
 ![Panels](https://img.shields.io/badge/panels-191+-61dafb.svg)
 ![Math Models](https://img.shields.io/badge/math%20models-75+-a855f7.svg)
@@ -96,10 +97,15 @@ graph TB
 - **ChunkRetryBoundary** — automatic retry on chunk load failure (3 retries with backoff)
 - **Preload-on-hover** — hovering a category preloads all panels in that category
 - **VirtualList** — windowed list rendering for large datasets
-- **ErrorBoundary** — per-panel error catching with retry button
+- **ErrorBoundary** — per-panel error catching with retry button, auto-disable after 3+ errors, re-enable option
+- **EmptyState component** — consistent empty/loading states across all panels (SignalFeed, BotStatus, FillsPanel, ArbitragePanel, PriceComparison, Watchlist, PositionsPanel, AccountPanel)
+- **OrderForm validation** — quantity validation with visual feedback, margin exceedance warning, disabled submit on invalid input
+- **SignalFeed filter** — All/Long/Short direction filter with filtered count
+- **Toast notifications** — auto-dismiss with visual progress bar, 5-toast cap, role="alert" accessibility
+- **Loading skeletons** — SkeletonRow, SkeletonCard, SkeletonTable, LoadingSpinner with shimmer animation
 - **Dark/light theme** — CSS variables, persisted in localStorage
 - **Multi-monitor** — detachable panels via popup windows with live data
-- **Keyboard shortcuts** — 1/2/3 exchange, Q/W/E symbol, Space pause, ? help
+- **Keyboard shortcuts** — 1/2/3 exchange, Q/W/E symbol, Space pause, A/B/S/R/P/F/H/T tab switching, ? help
 - **CLI monitors** — 4 monitor scripts (signal feed, HFT status, error viewer, price tracker)
 - **PWA** — installable, offline-capable via vite-plugin-pwa with Workbox caching
 - **Accessibility (WCAG AA)** — ARIA roles, keyboard navigation, skip-to-content link, focus-visible rings, reduced-motion support, aria-pressed on toggles, aria-live on connection status
@@ -145,7 +151,8 @@ graph TB
 ### Infrastructure
 
 - **Docker Compose** — 4-service orchestration with health checks and restart policies
-- **CI/CD** (GitHub Actions) — Python tests, C++ build (gcc-13 + clang-17), JS tests + coverage, bundle analysis, Docker build, dependency audit, Netlify deploy
+- **CI/CD** (GitHub Actions) — Python tests, C++ build (gcc-13 + clang-17 + MSVC Windows), JS tests + coverage, bundle analysis, Docker build, dependency audit, Netlify deploy
+- **Cross-platform** — C++ engine compiles on MSVC (Windows), GCC (Linux), and Clang (macOS). Shared memory IPC auto-detects Windows (`CreateFileMappingW`) vs POSIX (`shm_open`). Python SHM uses `mmap` with `tagname` on Windows.
 - **Vitest** — 60+ tests covering indicators, format utils, GARCH, Kalman, HMM, cointegration, K-Means, registry, VirtualList
 - **Prometheus** — metrics endpoint on exchange simulator
 - **PostgreSQL** — optional database backend
@@ -176,6 +183,38 @@ graph TB
 
 ## Quick Start
 
+### Windows (one-command install + run)
+
+```bat
+REM 1. Clone the repository
+git clone https://github.com/yourusername/hft-trading-system.git
+cd hft-trading-system
+
+REM 2. Install all dependencies (Python + C++ + Node.js)
+install-deps.bat
+REM or: no-docker.bat install
+
+REM 3. Start all services
+no-docker.bat
+```
+
+Open **http://localhost:3000** in your browser.
+
+### Linux/macOS
+
+```bash
+git clone https://github.com/yourusername/hft-trading-system.git
+cd hft-trading-system
+
+# Install all dependencies
+./no-docker.sh install
+
+# Start all services
+./no-docker.sh start
+```
+
+### Docker
+
 ```bash
 git clone https://github.com/yourusername/hft-trading-system.git
 cd hft-trading-system
@@ -184,7 +223,7 @@ docker-compose up
 
 Open **http://localhost:3000** in your browser.
 
-**Mock mode (no backend needed):**
+### Mock mode (no backend needed)
 ```bash
 cd web-ui
 npm install
@@ -270,10 +309,17 @@ hft-trading-system/
 ├── logs/                            # Runtime logs + CSV trades (gitignored)
 ├── docs/                            # Documentation (10 files)
 ├── .github/                         # CI workflows + issue/PR templates
-├── docker-compose.yml               # 4-service orchestration
+├── docker-compose.yml               # 4-service orchestration (development)
+├── docker-compose.prod.yml          # Production: 4 services + PostgreSQL + Redis + Prometheus + Grafana
 ├── shared_config.yaml               # Global settings
 ├── Makefile                         # install, dev, test, lint, build, docker, logs
-├── start.bat / start.sh             # Quick-start scripts (8 windows)
+├── Makefile.prod                    # Production: prod-up, prod-down, prod-build, prod-logs, prod-health
+├── install-deps.bat                 # One-command dependency installer (Python + C++ + Node)
+├── no-docker.bat / no-docker.sh     # Start all 4 services without Docker (Windows + Linux)
+├── docker.bat / docker.sh           # Production Docker management (up, down, build, logs, ps)
+├── start.bat / start.sh             # Quick-start scripts (8 windows: 4 services + 4 monitors)
+├── .env.prod.example                # Production environment template
+├── monitoring/                      # Prometheus config + Grafana dashboards
 ├── .editorconfig
 ├── .gitignore
 ├── CHANGELOG.md
@@ -281,6 +327,36 @@ hft-trading-system/
 ├── README.md
 └── LICENSE
 ```
+
+---
+
+## Production Deployment
+
+The project includes a full production Docker Compose setup with monitoring:
+
+```bash
+# Copy and edit production environment
+cp .env.prod.example .env.prod
+# Edit .env.prod with your API keys and passwords
+
+# Start all production services
+docker.bat up
+# or: make -f Makefile.prod prod-up
+```
+
+Production services:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Web UI | http://localhost:3000 | React dashboard |
+| Grafana | http://localhost:3001 | Monitoring dashboards |
+| Prometheus | http://localhost:9090 | Metrics scraping |
+| Exchange Simulator | ws://localhost:8765 | Market data feed |
+| AI Signal Bot | ws://localhost:8766 | Signal publisher |
+| PostgreSQL | localhost:5432 | Trade/signal persistence |
+| Redis | localhost:6379 | Caching layer |
+
+See [Makefile.prod](Makefile.prod) for all production commands.
 
 ---
 
@@ -360,7 +436,7 @@ cat logs/trades_latest.csv | column -t -s,   # View latest trades
 | [Web UI](docs/WEB_UI.md) | 191+ panels, performance, testing, accessibility, PWA |
 | [Exchange Simulator](docs/EXCHANGE_SIMULATOR.md) | Price generation, order book, liquidation engine |
 | [Setup Guide](docs/SETUP.md) | Installation, mock mode, troubleshooting |
-| [Progress & Roadmap](docs/PROGRESS.md) | 39 phases of implementation history |
+| [Progress & Roadmap](docs/PROGRESS.md) | 41 phases of implementation history |
 | [Future TODO](docs/FUTURE_TODO.md) | Feature backlog with priority levels |
 | [Code Audit](docs/AUDIT_2025.md) | Kleppmann principles audit results |
 
@@ -420,14 +496,8 @@ This is a **paper trading simulator** for educational purposes. No real exchange
 
 ## License
 
-Apache License 2.0 -- See [LICENSE](LICENSE)
+**Proprietary — All Rights Reserved.** See [LICENSE](LICENSE)
 
-This project is licensed under Apache 2.0 for educational and informational purposes. You are free to use, modify, and distribute this project, provided you:
-
-1. **Retain** the original copyright notice and license file
-2. **Credit** the original author in your README or documentation
-3. **Include** a link to the original repository
-
-> "Based on HFT Trading System by [your name/GitHub username]"
+This software is proprietary and confidential. Unauthorized copying, distribution, modification, public upload, or resale is strictly prohibited. For licensing inquiries, contact the copyright holder directly.
 
 This is **not** financial advice. This is **not** a trading bot for real exchanges. No real money is involved.

@@ -109,11 +109,14 @@ public:
         return std::string("{\"orders_sent\":") + std::to_string(s.orders_sent) +
                ",\"orders_filled\":" + std::to_string(s.orders_filled) +
                ",\"orders_rejected\":" + std::to_string(s.orders_rejected) +
+               ",\"orders_canceled\":" + std::to_string(s.orders_canceled) +
                ",\"signals_received\":" + std::to_string(s.signals_received) +
                ",\"signals_processed\":" + std::to_string(s.signals_processed) +
                ",\"errors\":" + std::to_string(s.errors) +
                ",\"reconnects\":" + std::to_string(s.reconnects) +
                ",\"shm_drops\":" + std::to_string(s.shm_drops) +
+               ",\"heartbeats_sent\":" + std::to_string(s.heartbeats_sent) +
+               ",\"heartbeats_missed\":" + std::to_string(s.heartbeats_missed) +
                ",\"fill_rate\":" + std::to_string(s.fill_rate) +
                ",\"rejection_rate\":" + std::to_string(s.rejection_rate) +
                ",\"uptime_seconds\":" + std::to_string(s.uptime_seconds) +
@@ -171,7 +174,7 @@ struct HealthStatus {
     uint64_t last_fill_age_ms{0};
     int64_t error_count_5min{0};
     double cpu_usage_pct{0.0};
-    size_t memory_usage_mb{0.0};
+    double memory_usage_mb{0.0};
 
     bool is_healthy() const noexcept {
         return shm_healthy && exchange_connected && signal_engine_active

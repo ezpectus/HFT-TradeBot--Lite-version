@@ -1,7 +1,8 @@
-import { useMemo, useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { createChart, ColorType } from 'lightweight-charts'
-import { BarChart3, TrendingUp, TrendingDown, DollarSign, Percent, Award, Activity, FileDown } from 'lucide-react'
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, Percent, Award, Activity, FileDown, ArrowUpDown } from 'lucide-react'
 import { calcAggregateMetrics, buildEquityCurve, calcDrawdown, calcSharpeRatio, calcSortinoRatio, formatMetric } from '../utils/performance'
+import { EmptyState } from './LoadingSkeleton'
 
 function exportPDF(accounts, metrics, allTrades, sharpe, sortino) {
   const win = window.open('', '_blank')
@@ -79,6 +80,8 @@ function exportPDF(accounts, metrics, allTrades, sharpe, sortino) {
 }
 
 export default function PerformanceDashboard({ accounts, fills, signals }) {
+  const [exSortMode, setExSortMode] = useState('pnl')
+
   const metrics = useMemo(() => calcAggregateMetrics(accounts), [accounts])
   const equityCurve = useMemo(() => buildEquityCurve(fills, 10000), [fills])
   const drawdown = useMemo(() => calcDrawdown(equityCurve), [equityCurve])
@@ -223,6 +226,16 @@ export default function PerformanceDashboard({ accounts, fills, signals }) {
   const longSignals = signals?.filter(s => s.direction === 'LONG').length || 0
   const shortSignals = signals?.filter(s => s.direction === 'SHORT').length || 0
 
+  if (metrics.totalTrades === 0 && !accounts) {
+    return (
+      <EmptyState
+        icon={BarChart3}
+        title="No performance data yet"
+        subtitle="Metrics and equity curve will appear after trades are executed"
+      />
+    )
+  }
+
   return (
     <div className="p-3 space-y-3 overflow-y-auto h-full">
       {/* Export button */}
@@ -280,14 +293,22 @@ export default function PerformanceDashboard({ accounts, fills, signals }) {
       {/* Per-exchange breakdown */}
       {accounts && Object.keys(accounts).length > 0 && (
         <div className="bg-bg-700 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-2 font-medium">Per-Exchange Breakdown</div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-400 font-medium">Per-Exchange Breakdown</span>
+            <button
+              onClick={() => setExSortMode(m => m === 'pnl' ? 'winRate' : m === 'winRate' ? 'balance' : 'pnl')}
+              className="flex items-center gap-0.5 text-[9px] text-gray-600 hover:text-gray-400 transition-colors"
+              title={`Sort by ${exSortMode === 'pnl' ? 'PnL' : exSortMode === 'winRate' ? 'Win Rate' : 'Balance'}`}
+            >
+              <ArrowUpDown size={10} />
+              {exSortMode === 'pnl' ? 'PnL' : exSortMode === 'winRate' ? 'Win%' : 'Balance'}
+            </button>
+          </div>
           <div className="space-y-1.5">
-            {Object.entries(accounts).map(([id, acc]) => {
-              const pnl = acc.total_pnl || acc.pnl || 0
-              const winRate = acc.total_trades > 0
-                ? ((acc.winning_trades || 0) / acc.total_trades) * 100
-                : 0
-              return (
+            {Object.entries(accounts)
+              .map(([id, acc]) => ({ id, acc, pnl: acc.total_pnl || acc.pnl || 0, winRate: acc.total_trades > 0 ? ((acc.winning_trades || 0) / acc.total_trades) * 100 : 0, balance: acc.balance || 0 }))
+              .sort((a, b) => exSortMode === 'winRate' ? b.winRate - a.winRate : exSortMode === 'balance' ? b.balance - a.balance : b.pnl - a.pnl)
+              .map(({ id, acc, pnl, winRate }) => (
                 <div key={id} className="flex items-center justify-between text-xs">
                   <span className="text-gray-300 capitalize">{id}</span>
                   <div className="flex gap-3">
@@ -298,8 +319,8 @@ export default function PerformanceDashboard({ accounts, fills, signals }) {
                     <span className="text-gray-500">{winRate.toFixed(1)}%</span>
                   </div>
                 </div>
-              )
-            })}
+              ))
+            }
           </div>
         </div>
       )}
@@ -457,12 +478,12 @@ export default function PerformanceDashboard({ accounts, fills, signals }) {
 
 function MetricCard({ icon, label, value, color }) {
   return (
-    <div className="bg-bg-700 rounded-lg p-2.5">
+    <div className="bg-bg-700 rounded-lg p-2.5 transition-all duration-200 hover:bg-bg-600/50 hover:scale-[1.02] animate-fadein">
       <div className="flex items-center gap-1.5 text-gray-500 mb-1">
         {icon}
         <span className="text-[10px] uppercase tracking-wide">{label}</span>
       </div>
-      <div className={`text-base font-bold ${color}`}>{value}</div>
+      <div className={`text-base font-bold ${color} transition-colors duration-300`}>{value}</div>
     </div>
   )
 }

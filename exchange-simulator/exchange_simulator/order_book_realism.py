@@ -69,8 +69,8 @@ class PriceLevel:
                 return removed
         return None
 
-    def fill_from_front(self, qty: float) -> list[BookOrder]:
-        """Fill orders from front of queue (FIFO). Returns filled orders."""
+    def fill_from_front(self, qty: float) -> list[tuple[BookOrder, float]]:
+        """Fill orders from front of queue (FIFO). Returns list of (order, filled_qty) tuples."""
         filled = []
         remaining = qty
         while remaining > 0 and self.orders:
@@ -79,9 +79,9 @@ class PriceLevel:
             fill_qty = min(remaining, available)
 
             front.visible_qty -= fill_qty
-            front.hidden_qty = max(0, front.hidden_qty)
             self.total_visible_qty -= fill_qty
             remaining -= fill_qty
+            filled.append((front, fill_qty))
 
             # Reveal hidden quantity for iceberg orders
             if front.order_type == OrderType.ICEBERG and front.visible_qty <= 0 and front.hidden_qty > 0:
@@ -90,7 +90,6 @@ class PriceLevel:
                 front.hidden_qty -= reveal
                 self.total_visible_qty += reveal
             elif front.visible_qty <= 0:
-                filled.append(front)
                 self.orders.popleft()
         return filled
 
@@ -251,17 +250,18 @@ class OrderBookRealism:
                 break
             level = side_book[price]
             filled_orders = level.fill_from_front(remaining)
-            for o in filled_orders:
-                fill_qty = o.quantity - o.visible_qty - o.hidden_qty
+            for o, fill_qty in filled_orders:
                 if fill_qty > 0:
                     fills.append({
                         "price": price, "qty": fill_qty, "order_id": o.order_id,
                         "timestamp": time.time(), "is_bid": o.is_bid
                     })
                     remaining -= fill_qty
-
-            # Track for adverse selection
-            self.recent_fills.append({"price": price, "qty": qty, "side": side, "time": time.time()})
+                    # Track actual fill qty for adverse selection
+                    self.recent_fills.append({"price": price, "qty": fill_qty, "side": side, "time": time.time()})
+                    # Decrement spoof count when a spoof order is fully consumed
+                    if o.order_type == OrderType.SPOOF and o.visible_qty <= 0 and o.hidden_qty <= 0:
+                        self.spoof_orders_active = max(0, self.spoof_orders_active - 1)
 
             if level.total_visible_qty <= 0:
                 del side_book[price]

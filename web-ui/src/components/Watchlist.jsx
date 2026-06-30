@@ -1,53 +1,48 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Star, Plus, X, TrendingUp, TrendingDown } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Star, Plus, X, TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react'
 import { formatPrice } from '../utils/format'
+import { EmptyState } from './LoadingSkeleton'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 const WATCHLIST_KEY = 'trading-sim-watchlist'
+const SORT_KEY = 'trading-sim-watchlist-sort'
+const DEFAULT_WATCHLIST = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
+const SORT_OPTIONS = [
+  { id: 'symbol', label: 'Symbol' },
+  { id: 'price', label: 'Price' },
+  { id: 'change', label: 'Change %' },
+]
 
 export default function Watchlist({ candles, prices, onSelectSymbol }) {
-  const [watchlist, setWatchlist] = useState([])
+  const [watchlist, setWatchlist] = useLocalStorage(WATCHLIST_KEY, DEFAULT_WATCHLIST)
+  const [sortMode, setSortMode] = useLocalStorage(SORT_KEY, 'symbol')
   const [showAdd, setShowAdd] = useState(false)
   const [newSymbol, setNewSymbol] = useState('')
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(WATCHLIST_KEY)
-      if (saved) setWatchlist(JSON.parse(saved))
-      else setWatchlist(['BTC/USDT', 'ETH/USDT', 'SOL/USDT'])
-    } catch (e) {
-      console.warn('[Watchlist] Failed to load:', e)
-      setWatchlist(['BTC/USDT', 'ETH/USDT', 'SOL/USDT'])
-    }
-  }, [])
-
-  const saveWatchlist = (list) => {
-    setWatchlist(list)
-    try { localStorage.setItem(WATCHLIST_KEY, JSON.stringify(list)) } catch (e) {
-      console.warn('[Watchlist] Failed to save:', e)
-    }
-  }
 
   const handleAdd = () => {
     const sym = newSymbol.trim().toUpperCase()
     if (sym && !watchlist.includes(sym)) {
-      saveWatchlist([...watchlist, sym])
+      setWatchlist([...watchlist, sym])
       setNewSymbol('')
       setShowAdd(false)
     }
   }
 
   const handleRemove = (sym) => {
-    saveWatchlist(watchlist.filter(s => s !== sym))
+    setWatchlist(watchlist.filter(s => s !== sym))
+  }
+
+  const cycleSortMode = () => {
+    const idx = SORT_OPTIONS.findIndex(o => o.id === sortMode)
+    setSortMode(SORT_OPTIONS[(idx + 1) % SORT_OPTIONS.length].id)
   }
 
   const items = useMemo(() => {
-    return watchlist.map(sym => {
-      // Find latest price from candles across all exchanges
+    const raw = watchlist.map(sym => {
       const symCandles = candles.filter(c => c.symbol === sym)
       const latest = symCandles[symCandles.length - 1]
       const price = latest?.close || prices[sym] || 0
 
-      // Calculate 24h-ish change (last 20 candles)
       const recent = symCandles.slice(-20)
       let change = 0
       if (recent.length >= 2) {
@@ -56,7 +51,6 @@ export default function Watchlist({ candles, prices, onSelectSymbol }) {
         change = first > 0 ? ((last - first) / first) * 100 : 0
       }
 
-      // Find best exchange (highest price)
       const exchanges = {}
       for (const c of symCandles.slice(-3)) {
         exchanges[c.exchange] = c.close
@@ -65,7 +59,11 @@ export default function Watchlist({ candles, prices, onSelectSymbol }) {
 
       return { symbol: sym, price, change, bestExchange }
     })
-  }, [watchlist, candles, prices])
+
+    if (sortMode === 'price') return raw.sort((a, b) => b.price - a.price)
+    if (sortMode === 'change') return raw.sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+    return raw.sort((a, b) => a.symbol.localeCompare(b.symbol))
+  }, [watchlist, candles, prices, sortMode])
 
   return (
     <div className="bg-bg-700 rounded-lg p-2.5">
@@ -73,6 +71,14 @@ export default function Watchlist({ candles, prices, onSelectSymbol }) {
         <Star size={12} className="text-accent-yellow" />
         Watchlist
         <div className="flex-1" />
+        <button
+          onClick={cycleSortMode}
+          className="flex items-center gap-0.5 text-gray-600 hover:text-gray-400 transition-colors"
+          title={`Sort by ${SORT_OPTIONS.find(o => o.id === sortMode)?.label || 'symbol'}`}
+        >
+          <ArrowUpDown size={10} />
+          {SORT_OPTIONS.find(o => o.id === sortMode)?.label || 'Symbol'}
+        </button>
         <button
           onClick={() => setShowAdd(!showAdd)}
           className="text-gray-500 hover:text-accent-yellow transition-colors"
@@ -138,7 +144,11 @@ export default function Watchlist({ candles, prices, onSelectSymbol }) {
       </div>
 
       {items.length === 0 && (
-        <div className="text-[10px] text-gray-600 italic py-2 text-center">No symbols in watchlist</div>
+        <EmptyState
+          icon={Star}
+          title="No symbols in watchlist"
+          subtitle="Click + to add a symbol"
+        />
       )}
     </div>
   )

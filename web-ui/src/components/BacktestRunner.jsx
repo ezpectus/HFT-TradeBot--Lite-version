@@ -482,6 +482,24 @@ export default function BacktestRunner({ symbol, connected, sendSignalMessage, b
         </>
       )}
 
+      {/* Running skeleton */}
+      {running && !result && (
+        <div className="space-y-2">
+          <div className="bg-bg-700 rounded-lg p-2 animate-pulse">
+            <div className="h-3 w-32 bg-bg-600 rounded mb-2" />
+            <div className="h-[150px] bg-bg-600 rounded" />
+          </div>
+          <div className="bg-bg-700 rounded-lg p-2 animate-pulse">
+            <div className="h-3 w-40 bg-bg-600 rounded mb-2" />
+            <div className="space-y-1.5">
+              <div className="h-4 bg-bg-600 rounded" />
+              <div className="h-4 bg-bg-600 rounded" />
+              <div className="h-4 bg-bg-600 rounded w-3/4" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Empty state */}
       {!result && !running && !error && (
         <div className="text-center text-gray-500 text-xs py-8">

@@ -1,54 +1,65 @@
 # AI Signal Bot Configuration
 # ============================
+# Controls trading symbols, risk parameters, strategy tuning,
+# technical indicators, and data storage for the AI signal engine.
+#
+# Sections:
+#   trading    — symbol list, timeframe, position limits
+#   exchange   — WebSocket endpoint for the exchange simulator
+#   risk       — per-trade risk, drawdown limits, SL/TP defaults
+#   strategies — enable/tune TrendFollowing, MeanReversion, FFT, Ensemble
+#   indicators — RSI, MACD, ATR, ADX, VWAP periods
+#   database   — SQLite path for trade history
+#   logging    — log level, file paths, CSV exports
 
 trading:
-  symbols:
+  symbols:                    # Pairs to monitor and generate signals for
     - "BTC/USDT"
     - "ETH/USDT"
     - "SOL/USDT"
 
-  timeframe: "5m"
-  signal_interval_seconds: 60
-  max_open_positions: 3
-  paper_trading: true
+  timeframe: "5m"             # Candle interval (must match exchange simulator)
+  signal_interval_seconds: 60 # How often to run signal analysis
+  max_open_positions: 3       # Concurrent positions across all symbols
+  paper_trading: true         # If true, no real orders are sent
 
 # Exchange simulator connection
 exchange:
   websocket_url: "ws://localhost:8765"
-  default_exchange: "binance"
+  default_exchange: "binance" # binance | bybit | okx
 
-# Risk management
+# Risk management — all percentages are of total account balance
 risk:
-  max_risk_per_trade_pct: 2.0
-  max_daily_drawdown_pct: 8.0
-  min_confidence: 65
-  min_rr_ratio: 1.5
-  stop_loss_pct: 2.0
-  take_profit_pct: 4.0
-  max_position_size_pct: 10.0
+  max_risk_per_trade_pct: 2.0    # Max loss per trade as % of balance
+  max_daily_drawdown_pct: 8.0    # Stop trading if daily loss exceeds this
+  min_confidence: 65             # Minimum signal confidence (0-100) to act
+  min_rr_ratio: 1.5              # Minimum risk:reward ratio (1:X)
+  stop_loss_pct: 2.0             # Default SL distance from entry (%)
+  take_profit_pct: 4.0           # Default TP distance from entry (%)
+  max_position_size_pct: 10.0    # Max notional per position as % of balance
 
 # Strategy configuration
 strategies:
   trend_following:
     enabled: true
-    ema_fast: 9
-    ema_slow: 21
-    adx_threshold: 25.0
+    ema_fast: 9                  # Fast EMA period
+    ema_slow: 21                 # Slow EMA period
+    adx_threshold: 25.0          # Min ADX to confirm trend strength
 
   mean_reversion:
     enabled: true
-    rsi_oversold: 30
-    rsi_overbought: 70
-    bb_period: 20
-    bb_std: 2.0
+    rsi_oversold: 30             # Buy when RSI drops below this
+    rsi_overbought: 70           # Sell when RSI rises above this
+    bb_period: 20                # Bollinger Bands lookback
+    bb_std: 2.0                  # Bollinger Bands standard deviations
 
   fft_cycle:
     enabled: true
-    min_data: 64
+    min_data: 64                 # Minimum candles needed for FFT analysis
 
   ensemble:
-    mode: "majority"    # "majority" or "weighted"
-    min_votes: 2
+    mode: "majority"             # "majority" or "weighted"
+    min_votes: 2                 # Min strategies agreeing to emit signal
 
 # Technical indicators
 indicators:
@@ -56,17 +67,17 @@ indicators:
   macd_fast: 12
   macd_slow: 26
   macd_signal: 9
-  atr_period: 14
+  atr_period: 14                 # Used for SL/TP volatility-based sizing
   adx_period: 14
   vwap_enabled: true
 
 # Database
 database:
-  path: "data/trading.db"
+  path: "data/trading.db"        # SQLite — stores signals, trades, equity
 
 # Logging
 logging:
-  level: "INFO"
+  level: "INFO"                  # DEBUG | INFO | WARNING | ERROR
   file: "logs/ai_signal_bot.log"
-  trades_csv: "logs/trades.csv"
-  signals_csv: "logs/signals.csv"
+  trades_csv: "logs/trades.csv"  # Flat CSV export of all fills
+  signals_csv: "logs/signals.csv" # Flat CSV export of all signals

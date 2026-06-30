@@ -1,41 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { ChevronDown, ChevronRight, Eye, EyeOff, Settings2 } from 'lucide-react'
 import { CATEGORIES, PANELS, DEFAULT_VISIBLE, getPanelsByCategory, preloadCategory } from './registry'
 import PanelErrorBoundary from '../components/PanelErrorBoundary'
 import ChunkRetryBoundary from '../components/ChunkRetryBoundary'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 
 const VISIBILITY_KEY = 'trading-sim-panel-visibility'
 const COLLAPSED_KEY = 'trading-sim-panel-collapsed'
 
 export default function PanelContainer({ context }) {
-  const [visible, setVisible] = useState(DEFAULT_VISIBLE)
-  const [collapsed, setCollapsed] = useState({})
+  const [visible, setVisible] = useLocalStorage(VISIBILITY_KEY, DEFAULT_VISIBLE)
+  const [collapsed, setCollapsed] = useLocalStorage(COLLAPSED_KEY, {})
   const [showSettings, setShowSettings] = useState(false)
-
-  // Load from localStorage
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(VISIBILITY_KEY)
-      if (v) setVisible(JSON.parse(v))
-      const c = localStorage.getItem(COLLAPSED_KEY)
-      if (c) setCollapsed(JSON.parse(c))
-    } catch (e) {
-      console.warn('[PanelContainer] Failed to load panel settings:', e)
-    }
-  }, [])
-
-  // Save to localStorage
-  useEffect(() => {
-    try { localStorage.setItem(VISIBILITY_KEY, JSON.stringify(visible)) } catch (e) {
-      console.warn('[PanelContainer] Failed to save visibility:', e)
-    }
-  }, [visible])
-
-  useEffect(() => {
-    try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed)) } catch (e) {
-      console.warn('[PanelContainer] Failed to save collapsed state:', e)
-    }
-  }, [collapsed])
 
   const togglePanel = (id) => {
     setVisible(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])
@@ -100,7 +76,7 @@ export default function PanelContainer({ context }) {
       )}
 
       {/* Render panels by category */}
-      {CATEGORIES.sort((a, b) => a.order - b.order).map(cat => {
+      {[...CATEGORIES].sort((a, b) => a.order - b.order).map(cat => {
         const catPanels = getPanelsByCategory(cat.id)
         const visiblePanels = catPanels.filter(p => visible.includes(p.id))
         if (visiblePanels.length === 0) return null

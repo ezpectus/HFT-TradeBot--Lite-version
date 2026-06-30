@@ -34,16 +34,29 @@ if(USE_UNITY_BUILD)
 endif()
 
 # ─── Precompiled headers ───
-option(USE_PCH "Enable precompiled headers" ON)
+# Disable PCH on MSVC — non-ASCII characters in project path cause UTF-8 encoding errors
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    option(USE_PCH "Enable precompiled headers" OFF)
+else()
+    option(USE_PCH "Enable precompiled headers" ON)
+endif()
 
 # ─── Compiler flags ───
-# Release: -O3 + LTO for maximum performance
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -flto")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fsanitize=address -fsanitize=undefined")
+# GCC/Clang: -O3 + LTO for maximum performance
+# MSVC: /O2 + /GL (whole-program optimization) + /utf-8
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -flto")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fsanitize=address -fsanitize=undefined")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG /GL /utf-8")
+    set(CMAKE_CXX_FLAGS_DEBUG "/Od /Zi /fsanitize=address /utf-8")
+    add_compile_options(/utf-8)
+endif()
 
-# Enable LTO in linker as well
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+# Enable LTO in linker as well (GCC/Clang only — MSVC uses per-target IPO)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
 
 # Architecture-specific optimizations (Nehalem+ for SSE4.2, Haswell+ for AVX2)
 # -march=native with fallback for cross-compilation safety
@@ -64,7 +77,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 # Find dependencies
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system random)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -114,13 +127,14 @@ endif()
 
 target_link_libraries(hft_trade_bot PRIVATE
     Boost::system
+    Boost::random
     OpenSSL::SSL
     OpenSSL::Crypto
     Threads::Threads
     spdlog::spdlog
     fmt::fmt
     nlohmann_json::nlohmann_json
-    yaml-cpp
+    yaml-cpp::yaml-cpp
 )
 
 # Link simdjson if found
@@ -171,6 +185,7 @@ target_link_libraries(test_signal_engine_v2 PRIVATE
 set_target_properties(test_signal_engine_v2 PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
+    INTERPROCEDURAL_OPTIMIZATION FALSE
 )
 add_test(NAME signal_engine_v2_tests COMMAND test_signal_engine_v2)
 
@@ -212,10 +227,12 @@ add_hft_test(test_order_manager tests/test_order_manager.cpp)
 # Position manager v2 tests
 add_hft_test(test_position_manager tests/test_position_manager.cpp)
 
-# SHM ring buffer tests (requires rt lib for shm_open on Linux)
-add_hft_test(test_shm tests/test_shm.cpp)
-if(UNIX AND NOT APPLE)
-    target_link_libraries(test_shm PRIVATE rt)
+# SHM ring buffer tests (POSIX-only — shm_open, mmap)
+if(NOT WIN32)
+    add_hft_test(test_shm tests/test_shm.cpp)
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(test_shm PRIVATE rt)
+    endif()
 endif()
 
 # FIX 4.4 protocol tests
@@ -230,4 +247,103 @@ add_hft_test(test_network tests/unit/test_network.cpp)
 add_hft_test(test_exchange_config tests/unit/test_exchange_config.cpp)
 
 # ─── Integration tests ───
-add_hft_test(test_integration_signal_flow tests/integration/test_signal_flow.cpp)
+if(NOT WIN32)
+    add_hft_test(test_integration_signal_flow tests/integration/test_signal_flow.cpp)
+endif()
+
+# ─── doctest-based unit tests (header-only, no external deps) ───
+function(add_doctest_test name source)
+    add_executable(${name} ${source})
+    target_include_directories(${name} PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/tests
+        ${WEBSOCKETPP_INCLUDE_DIR}
+    )
+    target_link_libraries(${name} PRIVATE
+        Threads::Threads
+    )
+    set_target_properties(${name} PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        INTERPROCEDURAL_OPTIMIZATION FALSE
+    )
+    add_test(NAME ${name}_tests COMMAND ${name})
+endfunction()
+
+# Risk manager doctest tests (no fmt dependency — uses minimal stub)
+add_doctest_test(test_doctest_risk_manager tests/test_doctest_risk_manager.cpp)
+
+# Pressure model doctest tests
+add_doctest_test(test_doctest_pressure_model tests/test_doctest_pressure_model.cpp)
+
+# Signal engine doctest tests (indicators + params + analyze)
+add_doctest_test(test_doctest_signal_engine tests/test_doctest_signal_engine.cpp)
+
+# Position manager v2 doctest tests (open/close/reverse, PnL, margin, SL/TP)
+add_doctest_test(test_doctest_position_manager tests/test_doctest_position_manager.cpp)
+
+# Momentum breakout v2 doctest tests (EMA stack, volume confirm, ADX gate, SL/TP)
+add_doctest_test(test_doctest_momentum_breakout tests/test_doctest_momentum_breakout.cpp)
+
+# Market making v2 doctest tests (reservation price, inventory skew, toxicity, spread)
+add_doctest_test(test_doctest_market_making tests/test_doctest_market_making.cpp)
+
+# Statistical arbitrage v2 doctest tests (OLS, Kalman hedge ratio, z-score, correlation matrix)
+add_doctest_test(test_doctest_statistical_arb tests/test_doctest_statistical_arb.cpp)
+
+# Mean reversion v2 doctest tests (Kalman filter, OU params, z-score tracking, signals)
+add_doctest_test(test_doctest_mean_reversion tests/test_doctest_mean_reversion.cpp)
+
+# Smart order router v2 doctest tests (5 strategies, toxic backoff, depth-aware, ExchangeBase)
+add_doctest_test(test_doctest_smart_order_router tests/test_doctest_smart_order_router.cpp)
+
+# Order manager doctest tests (lifecycle, partial fill, timeout, modify, slot reuse)
+add_doctest_test(test_doctest_order_manager tests/test_doctest_order_manager.cpp)
+
+# Latency tracker doctest tests (per-stage recording, percentiles, budget alerts, scoped measurement)
+add_doctest_test(test_doctest_latency_tracker tests/test_doctest_latency_tracker.cpp)
+
+# Position manager V1 doctest tests (open, close, pnl, SL/TP, NEUTRAL guard)
+add_doctest_test(test_doctest_position_manager_v1 tests/test_doctest_position_manager_v1.cpp)
+
+# Portfolio risk doctest tests (drawdown, historical VaR, parametric VaR, CVaR, stress test, correlation exposure)
+add_doctest_test(test_doctest_portfolio_risk tests/test_doctest_portfolio_risk.cpp)
+
+# Pre-trade risk doctest tests (token bucket, blacklist/whitelist, position limits, exposure, daily loss, margin check regression)
+add_doctest_test(test_doctest_pre_trade_risk tests/test_doctest_pre_trade_risk.cpp)
+
+# Position manager V2 doctest tests (open/add/close/reverse, weighted avg, PnL, margin, fees, SL/TP, margin call, reset)
+add_doctest_test(test_doctest_position_manager_v2 tests/test_doctest_position_manager_v2.cpp)
+
+# Candle aggregator doctest tests (time/volume/tick modes, OHLC, flush, zero-price edge case regression)
+add_doctest_test(test_doctest_candle_aggregator tests/test_doctest_candle_aggregator.cpp)
+
+# Trade handler doctest tests (aggressor detection, VWAP, rolling stats O(1) incremental, large trade detection, reset)
+add_doctest_test(test_doctest_trade_handler tests/test_doctest_trade_handler.cpp)
+
+# Order book manager doctest tests (L2 book, bid/ask updates, removal, snapshot, spread regime, OBI, crossed/locked)
+add_doctest_test(test_doctest_order_book_manager tests/test_doctest_order_book_manager.cpp)
+
+# Kill switch doctest tests (activate/deactivate, reason+timestamp recording regression, callbacks, idempotency)
+add_doctest_test(test_doctest_kill_switch tests/test_doctest_kill_switch.cpp)
+
+# SHM heartbeat doctest tests (writer/reader round-trip, seq consistency, is_alive, age_ms, auto heartbeat)
+add_doctest_test(test_doctest_shm_heartbeat tests/test_doctest_shm_heartbeat.cpp)
+
+# SHM market data doctest tests (write/read round-trip, num_slots header, multiple symbols, bounds, writer/reader)
+add_doctest_test(test_doctest_shm_market_data tests/test_doctest_shm_market_data.cpp)
+
+# SHM ring buffer bulk push/pop optimization tests (contiguous, wrap-around, partial fill, full cycle)
+add_doctest_test(test_doctest_shm_bulk tests/test_doctest_shm_bulk.cpp)
+
+# Adaptive order selector V2 doctest tests (emergency FOK, toxic IOC, confidence/spread/OBI paths, GTD, PostOnly, exchange mappings)
+add_doctest_test(test_doctest_adaptive_order_selector tests/test_doctest_adaptive_order_selector.cpp)
+
+# System monitor doctest tests (counters, fill/rejection rate, snapshot, reset, format_json regression, MemoryTracker, HealthStatus)
+add_doctest_test(test_doctest_system_monitor tests/test_doctest_system_monitor.cpp)
+
+# Order type selector + core types doctest tests (select branches, limit_price, OrderBook methods, Position PnL, side conversion)
+add_doctest_test(test_doctest_order_type_selector tests/test_doctest_order_type_selector.cpp)
+
+# FIX message doctest tests (build, finalize, parse, checksum validation round-trip, field access, edge cases)
+add_doctest_test(test_doctest_fix_message tests/test_doctest_fix_message.cpp)

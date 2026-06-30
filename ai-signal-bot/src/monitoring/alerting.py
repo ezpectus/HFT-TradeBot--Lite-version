@@ -118,6 +118,7 @@ class AlertSystem:
 
             except Exception as e:
                 logger.error(f"[AlertSystem] Error checking rule {name}: {e}")
+                self.last_fired[name] = now
 
         return alerts
 

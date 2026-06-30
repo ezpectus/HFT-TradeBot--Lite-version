@@ -52,12 +52,29 @@ public:
         total_notional_ += trade.price * trade.quantity;
         ++total_trades_;
 
-        // Rolling window
-        rolling_trades_[write_idx_ % window_size_] = trade;
+        // Rolling window — incrementally update running sums for O(1) queries
+        size_t w_slot = write_idx_ % window_size_;
+        if (write_idx_ >= window_size_) {
+            // Subtract old trade before overwriting
+            const auto& old = rolling_trades_[w_slot];
+            rolling_vol_sum_ -= old.quantity;
+            rolling_notional_sum_ -= old.price * old.quantity;
+        }
+        rolling_vol_sum_ += trade.quantity;
+        rolling_notional_sum_ += trade.price * trade.quantity;
+        rolling_trades_[w_slot] = trade;
         ++write_idx_;
 
-        // Update rolling volume stats for large trade detection
-        rolling_volumes_[vol_idx_ % window_size_] = trade.quantity;
+        // Update rolling volume stats for large trade detection — O(1) incremental
+        size_t v_slot = vol_idx_ % window_size_;
+        if (vol_idx_ >= window_size_) {
+            double old_vol = rolling_volumes_[v_slot];
+            rolling_vol_sum_for_stats_ -= old_vol;
+            rolling_vol_sq_sum_ -= old_vol * old_vol;
+        }
+        rolling_vol_sum_for_stats_ += trade.quantity;
+        rolling_vol_sq_sum_ += trade.quantity * trade.quantity;
+        rolling_volumes_[v_slot] = trade.quantity;
         ++vol_idx_;
 
         // Large trade detection (> 3σ)
@@ -96,18 +113,10 @@ public:
         return total_notional_ / total_volume_;
     }
 
-    // Rolling VWAP (last N trades)
+    // Rolling VWAP (last N trades) — O(1) using incremental sums
     double rolling_vwap() const noexcept {
-        double vol = 0.0;
-        double notional = 0.0;
-        size_t n = std::min(static_cast<size_t>(write_idx_), window_size_);
-        for (size_t i = 0; i < n; ++i) {
-            const auto& t = rolling_trades_[(write_idx_ - n + i) % window_size_];
-            vol += t.quantity;
-            notional += t.price * t.quantity;
-        }
-        if (vol <= 0.0) return 0.0;
-        return notional / vol;
+        if (rolling_vol_sum_ <= 0.0) return 0.0;
+        return rolling_notional_sum_ / rolling_vol_sum_;
     }
 
     // Total volume (buy + sell)
@@ -123,27 +132,22 @@ public:
     const TradeEvent& last_large_trade() const noexcept { return last_large_trade_; }
     const TradeEvent& last_trade() const noexcept { return last_trade_; }
 
-    // Rolling mean volume
+    // Rolling mean volume — O(1) using incremental sum
     double rolling_mean_volume() const noexcept {
         size_t n = std::min(static_cast<size_t>(vol_idx_), window_size_);
         if (n == 0) return 0.0;
-        double sum = 0.0;
-        for (size_t i = 0; i < n; ++i) {
-            sum += rolling_volumes_[(vol_idx_ - n + i) % window_size_];
-        }
-        return sum / static_cast<double>(n);
+        return rolling_vol_sum_for_stats_ / static_cast<double>(n);
     }
 
-    // Rolling standard deviation of volume
+    // Rolling standard deviation of volume — O(1) using incremental sums
+    // Uses: Var = (Σx² - n·μ²) / (n-1)
     double rolling_std_volume(double mean) const noexcept {
         size_t n = std::min(static_cast<size_t>(vol_idx_), window_size_);
         if (n < 2) return 0.0;
-        double sq_sum = 0.0;
-        for (size_t i = 0; i < n; ++i) {
-            double diff = rolling_volumes_[(vol_idx_ - n + i) % window_size_] - mean;
-            sq_sum += diff * diff;
-        }
-        return std::sqrt(sq_sum / static_cast<double>(n - 1));
+        double variance = (rolling_vol_sq_sum_ - static_cast<double>(n) * mean * mean)
+                          / static_cast<double>(n - 1);
+        if (variance <= 0.0) return 0.0;
+        return std::sqrt(variance);
     }
 
     // Reset session stats
@@ -158,6 +162,10 @@ public:
         write_idx_ = 0;
         vol_idx_ = 0;
         large_trade_count_ = 0;
+        rolling_vol_sum_ = 0.0;
+        rolling_notional_sum_ = 0.0;
+        rolling_vol_sum_for_stats_ = 0.0;
+        rolling_vol_sq_sum_ = 0.0;
     }
 
     uint64_t last_update_ns() const noexcept { return last_update_ns_; }
@@ -186,6 +194,12 @@ private:
     std::array<double, MAX_WINDOW> rolling_volumes_{};
     uint64_t write_idx_{0};
     uint64_t vol_idx_{0};
+
+    // Incremental running sums for O(1) rolling stats
+    double rolling_vol_sum_{0.0};
+    double rolling_notional_sum_{0.0};
+    double rolling_vol_sum_for_stats_{0.0};
+    double rolling_vol_sq_sum_{0.0};
 
     // Large trade detection
     static constexpr size_t min_samples_ = 30;

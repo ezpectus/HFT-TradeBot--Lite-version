@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 #include <string_view>
 #include <array>
 #include <string>
@@ -132,7 +133,7 @@ public:
     void add_tag(int tag, double value, int precision = 8) {
         char tmp[32];
         // Use snprintf for fixed precision
-        int n = snprintf(tmp, sizeof(tmp), "%.*f", precision, value);
+        int n = std::snprintf(tmp, sizeof(tmp), "%.*f", precision, value);
         add_tag(tag, std::string_view(tmp, n));
     }
 
@@ -158,12 +159,12 @@ public:
         int pos = 0;
 
         // 8=BeginString|9=BodyLength|
-        pos += snprintf(temp + pos, MAX_SIZE - pos, "8=%s%c", begin_string, SOH);
+        pos += std::snprintf(temp + pos, MAX_SIZE - pos, "8=%s%c", begin_string, SOH);
 
         // Body length = everything from tag 35 to end of current buffer
         size_t body_len = len_;
 
-        pos += snprintf(temp + pos, MAX_SIZE - pos, "9=%zu%c", body_len, SOH);
+        pos += std::snprintf(temp + pos, MAX_SIZE - pos, "9=%zu%c", body_len, SOH);
 
         // Copy body
         std::memcpy(temp + pos, buf_, len_);
@@ -176,7 +177,7 @@ public:
         }
         checksum %= 256;
 
-        pos += snprintf(temp + pos, MAX_SIZE - pos, "10=%03d%c", checksum, SOH);
+        pos += std::snprintf(temp + pos, MAX_SIZE - pos, "10=%03d%c", checksum, SOH);
 
         // Copy to final buffer
         std::memcpy(buf_, temp, pos);
@@ -207,10 +208,10 @@ public:
         }
         if (!cs_pos) return false;
 
-        // Calculate checksum up to "10="
+        // Calculate checksum up to and including the SOH before "10="
         size_t cs_start = static_cast<size_t>(cs_pos - data - 4); // -4 for "10="
         unsigned char calc = 0;
-        for (size_t i = 0; i < cs_start; ++i) {
+        for (size_t i = 0; i <= cs_start; ++i) {
             calc += static_cast<unsigned char>(data[i]);
         }
         calc %= 256;

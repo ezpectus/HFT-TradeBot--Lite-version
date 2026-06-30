@@ -22,7 +22,11 @@
 #include <functional>
 #include <fstream>
 #include <memory>
+#include <filesystem>
+
+#ifndef _WIN32
 #include <sys/stat.h>
+#endif
 
 namespace hft {
 
@@ -56,7 +60,7 @@ public:
     // Initialize SHM for notifying Python
     bool init_shm() {
         try {
-            shm_ = std::make_unique<ipc::ShmRingBuffer<ipc::KillSwitchMsg>>(
+            shm_ = std::make_unique<ShmRingBuffer<ipc::KillSwitchMsg>>(
                 shm_name_, 64, true);
             return true;
         } catch (...) {
@@ -70,6 +74,9 @@ public:
 
         auto ts = std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
+
+        last_reason_.store(reason, std::memory_order_relaxed);
+        activated_at_.store(static_cast<uint64_t>(ts), std::memory_order_relaxed);
 
         // 1. Cancel all open orders
         if (cancel_all_cb_) cancel_all_cb_();
@@ -91,7 +98,9 @@ public:
 
         // 5. Remove trigger file if it was a file trigger
         if (reason == Reason::FILE_TRIGGER) {
+#ifndef _WIN32
             ::unlink(trigger_file_.c_str());
+#endif
         }
     }
 
@@ -136,9 +145,7 @@ private:
     void monitor_loop(int poll_interval_ms) {
         while (monitoring_) {
             // Check if trigger file exists
-            struct stat st;
-            if (stat(trigger_file_.c_str(), &st) == 0) {
-                last_reason_.store(Reason::FILE_TRIGGER, std::memory_order_relaxed);
+            if (std::filesystem::exists(trigger_file_)) {
                 activate(Reason::FILE_TRIGGER);
             }
 
@@ -160,7 +167,7 @@ private:
     CloseAllCallback close_all_cb_;
     NotifyCallback notify_cb_;
 
-    std::unique_ptr<ipc::ShmRingBuffer<ipc::KillSwitchMsg>> shm_;
+    std::unique_ptr<ShmRingBuffer<ipc::KillSwitchMsg>> shm_;
 };
 
 } // namespace hft

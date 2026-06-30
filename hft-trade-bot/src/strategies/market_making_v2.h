@@ -84,6 +84,7 @@ public:
         quote.ask_price = reservation + half_spread - inventory_skew;
         quote.reservation_price = reservation;
         quote.spread = optimal_spread;
+        last_reservation_ = reservation;
 
         // Size: skew based on inventory
         double inventory_ratio = (config_.max_inventory > 0.0)
@@ -134,6 +135,7 @@ public:
         current_sigma_ = config_.sigma;
         vol_ewma_ = config_.sigma * config_.sigma;
         last_mid_ = 0.0;
+        last_reservation_ = 0.0;
         vol_count_ = 0;
     }
 

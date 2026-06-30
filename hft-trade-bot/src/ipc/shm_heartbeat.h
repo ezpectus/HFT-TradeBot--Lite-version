@@ -16,6 +16,19 @@
 #include <string>
 #include <thread>
 
+#ifdef _WIN32
+  #ifndef NOMINMAX
+  #define NOMINMAX
+  #endif
+  #include <windows.h>
+  #include <process.h>
+#else
+  #include <fcntl.h>
+  #include <sys/mman.h>
+  #include <sys/stat.h>
+  #include <unistd.h>
+#endif
+
 namespace hft::ipc {
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +57,24 @@ public:
     {
         const uint64_t total_size = sizeof(HeartbeatSlot);
 
+#ifdef _WIN32
+        std::wstring wname(shm_name_.begin(), shm_name_.end());
+        if (create) {
+            handle_ = CreateFileMappingW(
+                INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE,
+                0, static_cast<DWORD>(total_size), wname.c_str());
+            if (!handle_) throw std::runtime_error("CreateFileMapping create failed: " + shm_name_);
+        } else {
+            handle_ = OpenFileMappingW(
+                FILE_MAP_ALL_ACCESS, FALSE, wname.c_str());
+            if (!handle_) throw std::runtime_error("OpenFileMapping failed: " + shm_name_);
+        }
+        void* ptr = MapViewOfFile(handle_, FILE_MAP_ALL_ACCESS, 0, 0, total_size);
+        if (!ptr) {
+            CloseHandle(handle_);
+            throw std::runtime_error("MapViewOfFile failed for: " + shm_name_);
+        }
+#else
         if (create) {
             fd_ = shm_open(shm_name_.c_str(), O_CREAT | O_RDWR, 0666);
             if (fd_ < 0) throw std::runtime_error("shm_open create failed: " + shm_name_);
@@ -62,6 +93,7 @@ public:
             close(fd_);
             throw std::runtime_error("mmap failed: " + shm_name_);
         }
+#endif
 
         slot_ = static_cast<HeartbeatSlot*>(ptr);
         mapped_size_ = total_size;
@@ -73,10 +105,15 @@ public:
 
     ~ShmHeartbeatWriter() {
         if (slot_) {
+#ifdef _WIN32
+            UnmapViewOfFile(slot_);
+            if (handle_) CloseHandle(handle_);
+#else
             munmap(slot_, mapped_size_);
+            if (fd_ >= 0) close(fd_);
+            if (owns_) shm_unlink(shm_name_.c_str());
+#endif
         }
-        if (fd_ >= 0) close(fd_);
-        if (owns_) shm_unlink(shm_name_.c_str());
     }
 
     ShmHeartbeatWriter(const ShmHeartbeatWriter&) = delete;
@@ -89,7 +126,13 @@ public:
         slot_->seq.store(seq + 1, std::memory_order_release);  // Odd = writing
 
         slot_->timestamp_ns = now_ns();
-        slot_->pid = static_cast<uint64_t>(getpid());
+        slot_->pid = static_cast<uint64_t>(
+#ifdef _WIN32
+            _getpid()
+#else
+            getpid()
+#endif
+        );
         slot_->message_count = msg_count;
         slot_->error_count = err_count;
         std::memset(slot_->status, 0, sizeof(slot_->status));
@@ -126,7 +169,11 @@ private:
 
     std::string shm_name_;
     bool owns_;
+#ifdef _WIN32
+    HANDLE handle_{nullptr};
+#else
     int fd_{-1};
+#endif
     uint64_t mapped_size_{0};
     HeartbeatSlot* slot_{nullptr};
     std::atomic<bool> running_{false};
@@ -142,6 +189,17 @@ public:
         : shm_name_(shm_name)
     {
         const uint64_t total_size = sizeof(HeartbeatSlot);
+#ifdef _WIN32
+        std::wstring wname(shm_name_.begin(), shm_name_.end());
+        handle_ = OpenFileMappingW(
+            FILE_MAP_ALL_ACCESS, FALSE, wname.c_str());
+        if (!handle_) throw std::runtime_error("OpenFileMapping failed: " + shm_name_);
+        void* ptr = MapViewOfFile(handle_, FILE_MAP_ALL_ACCESS, 0, 0, total_size);
+        if (!ptr) {
+            CloseHandle(handle_);
+            throw std::runtime_error("MapViewOfFile failed for: " + shm_name_);
+        }
+#else
         fd_ = shm_open(shm_name_.c_str(), O_RDWR, 0666);
         if (fd_ < 0) throw std::runtime_error("shm_open failed: " + shm_name_);
 
@@ -151,14 +209,20 @@ public:
             close(fd_);
             throw std::runtime_error("mmap failed: " + shm_name_);
         }
+#endif
 
         slot_ = static_cast<HeartbeatSlot*>(ptr);
         mapped_size_ = total_size;
     }
 
     ~ShmHeartbeatReader() {
+#ifdef _WIN32
+        if (slot_) UnmapViewOfFile(slot_);
+        if (handle_) CloseHandle(handle_);
+#else
         if (slot_) munmap(slot_, mapped_size_);
         if (fd_ >= 0) close(fd_);
+#endif
     }
 
     ShmHeartbeatReader(const ShmHeartbeatReader&) = delete;
@@ -203,7 +267,11 @@ private:
     }
 
     std::string shm_name_;
+#ifdef _WIN32
+    HANDLE handle_{nullptr};
+#else
     int fd_{-1};
+#endif
     uint64_t mapped_size_{0};
     HeartbeatSlot* slot_{nullptr};
 };

@@ -1,5 +1,5 @@
 // Tests: PnL, position averaging, margin, SL/TP
-#include "../position/position_manager_v2.h"
+#include "../src/position/position_manager_v2.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>

@@ -4,6 +4,10 @@
 // and FFT-based cycle detection directly from market data.
 #pragma once
 
+#ifdef _MSC_VER
+#define _USE_MATH_DEFINES
+#endif
+
 #include "../data/types.h"
 #include "../data/signal.h"
 #include <vector>
@@ -13,6 +17,11 @@
 #include <algorithm>
 #include <complex>
 #include <valarray>
+#include <fmt/format.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace hft {
 
@@ -113,8 +122,6 @@ inline std::vector<double> fft_lowpass(const std::vector<double>& closes, double
     }
     return result;
 }
-
-namespace hft {
 
 // EMA computation
 inline std::vector<double> compute_ema(const std::vector<double>& values, int period) {

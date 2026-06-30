@@ -1,7 +1,7 @@
 // Tests: Pre-trade checks, kill switch, VaR/CVaR, drawdown tracker
-#include "../risk/pre_trade_risk.h"
-#include "../risk/portfolio_risk.h"
-#include "../risk/kill_switch.h"
+#include "../src/risk/pre_trade_risk.h"
+#include "../src/risk/portfolio_risk.h"
+#include "../src/risk/kill_switch.h"
 #include <cassert>
 #include <cmath>
 #include <cstdio>

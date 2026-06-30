@@ -146,17 +146,33 @@ class ExchangeWebSocketServer:
                 }))
                 return
 
-            from exchange_simulator.models import OrderType, Side
+            # Validate required fields
+            missing = [f for f in ("symbol", "side", "quantity") if f not in data]
+            if missing:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"Missing required order fields: {missing}",
+                }))
+                return
 
-            order = exchange.submit_order(
-                symbol=data["symbol"],
-                side=Side(data["side"]),
-                quantity=float(data["quantity"]),
-                order_type=OrderType(data.get("order_type", "MARKET")),
-                price=data.get("price"),
-                stop_loss=data.get("stop_loss"),
-                take_profit=data.get("take_profit"),
-            )
+            try:
+                from exchange_simulator.models import OrderType, Side
+
+                order = exchange.submit_order(
+                    symbol=data["symbol"],
+                    side=Side(data["side"]),
+                    quantity=float(data["quantity"]),
+                    order_type=OrderType(data.get("order_type", "MARKET")),
+                    price=data.get("price"),
+                    stop_loss=data.get("stop_loss"),
+                    take_profit=data.get("take_profit"),
+                )
+            except (ValueError, KeyError) as e:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"Invalid order parameters: {e}",
+                }))
+                return
 
             # Log bot trades to CLI
             if order.status.value == "FILLED":

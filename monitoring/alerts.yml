@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Prometheus alerting rules for trading system
+# ─────────────────────────────────────────────────────────────────────────────
+# Load in prometheus.yml via:
+#   rule_files:
+#     - "alerts.yml"
+
+groups:
+  # ── AI Signal Bot alerts ──
+  - name: ai-signal-bot
+    rules:
+      # Circuit breaker tripped — signals are being blocked
+      - alert: CircuitBreakerTripped
+        expr: ai_signal_bot_circuit_breaker_state == 1
+        for: 10s
+        labels:
+          severity: critical
+          service: ai-signal-bot
+        annotations:
+          summary: "Circuit breaker is OPEN — signals blocked"
+          description: "AI Signal Bot circuit breaker has been tripped. No signals are being broadcast. Check recent trade history for consecutive losses."
+
+      # Circuit breaker in half-open (probe mode)
+      - alert: CircuitBreakerHalfOpen
+        expr: ai_signal_bot_circuit_breaker_state == 2
+        for: 30s
+        labels:
+          severity: warning
+          service: ai-signal-bot
+        annotations:
+          summary: "Circuit breaker in HALF_OPEN — probe mode"
+          description: "Circuit breaker is testing recovery with probe signals. If successful, it will close."
+
+      # High signal block rate — breaker frequently active
+      - alert: HighSignalBlockRate
+        expr: rate(ai_signal_bot_signals_blocked_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-signal-bot
+        annotations:
+          summary: "High signal block rate"
+          description: "More than 0.5 signals/sec are being blocked by circuit breaker. Strategy may need review."
+
+      # No signals sent in 5 minutes
+      - alert: NoSignalsSent
+        expr: rate(ai_signal_bot_signals_sent_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-signal-bot
+        annotations:
+          summary: "No signals sent in 5 minutes"
+          description: "AI Signal Bot has not broadcast any signals in the last 5 minutes. Check bot health."
+
+      # No WebSocket clients connected
+      - alert: NoWsClients
+        expr: ai_signal_bot_ws_clients_connected == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-signal-bot
+        annotations:
+          summary: "No WebSocket clients connected"
+          description: "No HFT Trade Bot or Web UI is connected to the signal publisher."
+
+      # Bot process down — no metrics scraped
+      - alert: SignalBotDown
+        expr: up{job="ai-signal-bot"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: ai-signal-bot
+        annotations:
+          summary: "AI Signal Bot is down"
+          description: "Prometheus cannot scrape metrics from AI Signal Bot. Process may have crashed."
+
+  # ── Exchange Simulator alerts ──
+  - name: exchange-simulator
+    rules:
+      # Exchange simulator down
+      - alert: ExchangeSimulatorDown
+        expr: up{job="exchange-simulator"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: exchange-simulator
+        annotations:
+          summary: "Exchange Simulator is down"
+          description: "Prometheus cannot scrape metrics from Exchange Simulator."
+
+  # ── HFT Trade Bot alerts ──
+  - name: hft-trade-bot
+    rules:
+      # HFT bot down
+      - alert: HftBotDown
+        expr: up{job="hft-trade-bot"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: hft-trade-bot
+        annotations:
+          summary: "HFT Trade Bot is down"
+          description: "Prometheus cannot scrape metrics from HFT Trade Bot. Process may have crashed."
+
+  # ── System-wide alerts ──
+  - name: system
+    rules:
+      # Prometheus self-monitoring
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: prometheus
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus self-monitoring target is unreachable."

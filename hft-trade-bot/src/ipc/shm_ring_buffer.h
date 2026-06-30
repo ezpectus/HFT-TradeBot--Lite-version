@@ -12,13 +12,22 @@
 #include <atomic>
 #include <cstdint>
 #include <cstring>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <string>
 #include <stdexcept>
 #include <new>
+
+#ifdef _WIN32
+  #ifndef NOMINMAX
+  #define NOMINMAX
+  #endif
+  #include <windows.h>
+  #include <fileapi.h>
+#else
+  #include <fcntl.h>
+  #include <sys/mman.h>
+  #include <sys/stat.h>
+  #include <unistd.h>
+#endif
 
 namespace hft {
 
@@ -63,8 +72,33 @@ public:
         const uint64_t data_size = capacity * sizeof(T);
         const uint64_t total_size = sizeof(ShmHeader) + data_size;
 
+#ifdef _WIN32
+        // Windows: use page-file backed shared memory via CreateFileMapping
+        // Convert name to wide string for CreateFileMappingW
+        std::wstring wname(name_.begin(), name_.end());
+
         if (create) {
-            // Create new shared memory segment
+            handle_ = CreateFileMappingW(
+                INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE,
+                0, static_cast<DWORD>(total_size), wname.c_str());
+            if (!handle_) {
+                throw std::runtime_error("CreateFileMapping create failed: " + name_);
+            }
+        } else {
+            handle_ = OpenFileMappingW(
+                FILE_MAP_ALL_ACCESS, FALSE, wname.c_str());
+            if (!handle_) {
+                throw std::runtime_error("OpenFileMapping failed: " + name_);
+            }
+        }
+
+        void* ptr = MapViewOfFile(handle_, FILE_MAP_ALL_ACCESS, 0, 0, total_size);
+        if (!ptr) {
+            CloseHandle(handle_);
+            throw std::runtime_error("MapViewOfFile failed for: " + name_);
+        }
+#else
+        if (create) {
             fd_ = shm_open(name_.c_str(), O_CREAT | O_RDWR, 0666);
             if (fd_ < 0) {
                 throw std::runtime_error("shm_open create failed: " + name_);
@@ -74,26 +108,24 @@ public:
                 throw std::runtime_error("ftruncate failed for: " + name_);
             }
         } else {
-            // Open existing shared memory segment
             fd_ = shm_open(name_.c_str(), O_RDWR, 0666);
             if (fd_ < 0) {
                 throw std::runtime_error("shm_open open failed: " + name_);
             }
         }
 
-        // Map shared memory
         void* ptr = mmap(nullptr, total_size, PROT_READ | PROT_WRITE,
                          MAP_SHARED, fd_, 0);
         if (ptr == MAP_FAILED) {
             close(fd_);
             throw std::runtime_error("mmap failed for: " + name_);
         }
+#endif
 
         header_ = static_cast<ShmHeader*>(ptr);
         data_ = reinterpret_cast<T*>(static_cast<char*>(ptr) + sizeof(ShmHeader));
 
         if (create) {
-            // Initialize header
             header_->magic = SHM_MAGIC;
             header_->capacity = capacity;
             header_->element_size = sizeof(T);
@@ -101,20 +133,16 @@ public:
             header_->head.store(0, std::memory_order_relaxed);
             header_->tail.store(0, std::memory_order_relaxed);
         } else {
-            // Validate existing header
             if (header_->magic != SHM_MAGIC) {
-                munmap(header_, total_size);
-                close(fd_);
+                cleanup_mapped(total_size);
                 throw std::runtime_error("SHM magic mismatch: " + name_);
             }
             if (header_->capacity != capacity) {
-                munmap(header_, total_size);
-                close(fd_);
+                cleanup_mapped(total_size);
                 throw std::runtime_error("SHM capacity mismatch: " + name_);
             }
             if (header_->element_size != sizeof(T)) {
-                munmap(header_, total_size);
-                close(fd_);
+                cleanup_mapped(total_size);
                 throw std::runtime_error("SHM element size mismatch: " + name_);
             }
         }
@@ -124,13 +152,25 @@ public:
 
     ~ShmRingBuffer() {
         if (header_) {
+#ifdef _WIN32
+            UnmapViewOfFile(header_);
+#else
             munmap(header_, header_->total_size);
+#endif
         }
+#ifdef _WIN32
+        if (handle_) {
+            CloseHandle(handle_);
+        }
+#else
         if (fd_ >= 0) {
             close(fd_);
         }
+#endif
         if (owns_fd_) {
+#ifndef _WIN32
             shm_unlink(name_.c_str());
+#endif
         }
     }
 
@@ -176,6 +216,7 @@ public:
     }
 
     // Bulk push — pushes up to count items. Returns number actually pushed.
+    // Optimized: uses at most 2 memcpy calls instead of per-element copies.
     uint64_t bulk_push(const T* items, uint64_t count) noexcept {
         const uint64_t head = header_->head.load(std::memory_order_relaxed);
         const uint64_t tail = header_->tail.load(std::memory_order_acquire);
@@ -183,9 +224,18 @@ public:
         const uint64_t available = capacity_ - (head - tail);
         const uint64_t to_push = count < available ? count : available;
 
-        for (uint64_t i = 0; i < to_push; ++i) {
-            const uint64_t slot = (head + i) & mask_;
-            std::memcpy(&data_[slot], &items[i], sizeof(T));
+        const uint64_t start_slot = head & mask_;
+        const uint64_t first_chunk = (start_slot + to_push <= capacity_)
+            ? to_push
+            : capacity_ - start_slot;
+
+        // First contiguous chunk
+        std::memcpy(&data_[start_slot], items, first_chunk * sizeof(T));
+
+        // Wrapped chunk (if any)
+        if (to_push > first_chunk) {
+            std::memcpy(&data_[0], items + first_chunk,
+                        (to_push - first_chunk) * sizeof(T));
         }
 
         header_->head.store(head + to_push, std::memory_order_release);
@@ -193,6 +243,7 @@ public:
     }
 
     // Bulk pop — pops up to count items. Returns number actually popped.
+    // Optimized: uses at most 2 memcpy calls instead of per-element copies.
     uint64_t bulk_pop(T* out, uint64_t count) noexcept {
         const uint64_t tail = header_->tail.load(std::memory_order_relaxed);
         const uint64_t head = header_->head.load(std::memory_order_acquire);
@@ -200,9 +251,18 @@ public:
         const uint64_t available = head - tail;
         const uint64_t to_pop = count < available ? count : available;
 
-        for (uint64_t i = 0; i < to_pop; ++i) {
-            const uint64_t slot = (tail + i) & mask_;
-            std::memcpy(&out[i], &data_[slot], sizeof(T));
+        const uint64_t start_slot = tail & mask_;
+        const uint64_t first_chunk = (start_slot + to_pop <= capacity_)
+            ? to_pop
+            : capacity_ - start_slot;
+
+        // First contiguous chunk
+        std::memcpy(out, &data_[start_slot], first_chunk * sizeof(T));
+
+        // Wrapped chunk (if any)
+        if (to_pop > first_chunk) {
+            std::memcpy(out + first_chunk, &data_[0],
+                        (to_pop - first_chunk) * sizeof(T));
         }
 
         header_->tail.store(tail + to_pop, std::memory_order_release);
@@ -223,16 +283,32 @@ public:
     // Unlink the shared memory segment (call after all processes are done)
     void unlink() {
         if (owns_fd_) {
+#ifndef _WIN32
             shm_unlink(name_.c_str());
+#endif
             owns_fd_ = false;
         }
     }
 
 private:
+    void cleanup_mapped(uint64_t total_size) {
+#ifdef _WIN32
+        if (header_) { UnmapViewOfFile(header_); header_ = nullptr; }
+        if (handle_) { CloseHandle(handle_); handle_ = nullptr; }
+#else
+        if (header_) { munmap(header_, total_size); header_ = nullptr; }
+        if (fd_ >= 0) { close(fd_); fd_ = -1; }
+#endif
+    }
+
     std::string name_;
     uint64_t capacity_;
     uint64_t mask_{0};
+#ifdef _WIN32
+    HANDLE handle_{nullptr};
+#else
     int fd_{-1};
+#endif
     bool owns_fd_{false};
     ShmHeader* header_{nullptr};
     T* data_{nullptr};

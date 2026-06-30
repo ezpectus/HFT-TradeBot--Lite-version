@@ -1,30 +1,20 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
+import { useLocalStorage } from './useLocalStorage'
 
 const STORAGE_KEY = 'trading-sim-theme'
 
 export function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) || 'dark'
-    } catch {
-      return 'dark'
-    }
-  })
+  const [theme, setTheme] = useLocalStorage(STORAGE_KEY, 'dark')
 
   useEffect(() => {
     const root = document.documentElement
     root.classList.remove('dark', 'light')
     root.classList.add(theme)
-    try {
-      localStorage.setItem(STORAGE_KEY, theme)
-    } catch {
-      // ignore
-    }
   }, [theme])
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark')
-  }, [])
+  }, [setTheme])
 
   return { theme, toggleTheme }
 }

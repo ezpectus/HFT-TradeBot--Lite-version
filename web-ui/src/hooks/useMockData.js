@@ -32,6 +32,7 @@ export function useMockExchangeData() {
   const candleMap = useRef(new Map())
   const intervalRef = useRef(null)
   const accountsRef = useRef({})
+  const pricesRef = useRef({})
 
   // Initialize with snapshot
   useEffect(() => {
@@ -57,7 +58,7 @@ export function useMockExchangeData() {
       for (const exchange of MOCK_EXCHANGES) {
         for (const symbol of MOCK_SYMBOLS) {
           const key = `${exchange}|${symbol}`
-          const lastPrice = prices[key] || 100
+          const lastPrice = pricesRef.current[key] || 100
           const newCandle = generateCandles(symbol, exchange, 1, 60)[0]
           newCandle.timestamp = Math.floor(Date.now() / 1000)
           newCandle.open = lastPrice
@@ -91,8 +92,9 @@ export function useMockExchangeData() {
           candleMap.current.delete(`${c.exchange}|${c.symbol}|${c.timestamp}`)
         }
       }
-      setCandles(Array.from(candleMap.current.values()).sort((a, b) => a.timestamp - b.timestamp).slice(-500))
-      setPrices(prev => ({ ...prev, ...newPrices }))
+      setCandles(allCandles.slice(-500))
+      pricesRef.current = { ...pricesRef.current, ...newPrices }
+      setPrices({ ...pricesRef.current })
       setOrderbooks(prev => ({ ...prev, ...newOrderbooks }))
       setAccounts({ ...accountsRef.current })
 
@@ -109,10 +111,10 @@ export function useMockExchangeData() {
 
   const submitOrder = useCallback((order) => {
     const fill = generateFill(order.symbol, order.exchange || 'binance',
-      prices[`${order.exchange || 'binance'}|${order.symbol}`] || 100, accountsRef.current)
+      pricesRef.current[`${order.exchange || 'binance'}|${order.symbol}`] || 100, accountsRef.current)
     setFills(prev => [fill, ...prev].slice(0, 50))
     return true
-  }, [prices])
+  }, [])
 
   const closePosition = useCallback((exchange, symbol) => {
     if (accountsRef.current[exchange]?.positions?.[symbol]) {

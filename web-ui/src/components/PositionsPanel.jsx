@@ -1,5 +1,6 @@
 import { X, Layers, AlertTriangle } from 'lucide-react'
 import { formatPrice, formatUsd, colorForSide } from '../utils/format'
+import { EmptyState } from './LoadingSkeleton'
 
 const EXCHANGE_FEES = { binance: 0.04, bybit: 0.06, okx: 0.05 }
 const LEVERAGE = 10
@@ -15,16 +16,35 @@ export default function PositionsPanel({ accounts, onClose, currentPrices }) {
 
   if (!allPositions.length) {
     return (
-      <div className="p-3 text-center text-gray-500 text-xs">
-        <Layers size={18} className="mx-auto mb-1 opacity-50" />
-        No open positions
-      </div>
+      <EmptyState
+        icon={Layers}
+        title="No open positions"
+        subtitle="Active positions will appear here when orders are filled"
+      />
     )
   }
 
+  const totalPnl = allPositions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0)
+  const totalMargin = allPositions.reduce((s, p) => {
+    return s + (p.entry_price * p.quantity) / (p.leverage || LEVERAGE)
+  }, 0)
+  const longCount = allPositions.filter(p => p.side === 'BUY').length
+  const shortCount = allPositions.length - longCount
+
   return (
     <div className="p-2 border-t border-bg-600">
-      <div className="text-xs font-medium text-gray-400 mb-1.5 px-1">Open Positions ({allPositions.length})</div>
+      <div className="flex items-center justify-between mb-1.5 px-1">
+        <div className="text-xs font-medium text-gray-400">
+          Open Positions ({allPositions.length})
+        </div>
+        <div className="flex items-center gap-2 text-[10px] font-mono">
+          <span className="text-gray-500">L:{longCount} S:{shortCount}</span>
+          <span className="text-gray-500">Margin: <span className="text-gray-300">${formatPrice(totalMargin)}</span></span>
+          <span className={totalPnl >= 0 ? 'text-accent-green' : 'text-accent-red'}>
+            {totalPnl >= 0 ? '+' : ''}{formatUsd(totalPnl)}
+          </span>
+        </div>
+      </div>
       <div className="space-y-1">
         {allPositions.map((pos, i) => {
           const pnlPositive = pos.unrealized_pnl >= 0

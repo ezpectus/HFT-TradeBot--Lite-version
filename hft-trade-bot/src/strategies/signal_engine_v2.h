@@ -34,9 +34,14 @@ namespace hft {
 // ─────────────────────────────────────────────────────────────────────────────
 class InlineEMA {
 public:
-    explicit InlineEMA(int period) : period_(period), k_(2.0 / (period + 1)) {}
+    // constexpr-friendly: k_ computed at construction time
+    static constexpr double compute_k(int period) noexcept {
+        return 2.0 / (static_cast<double>(period) + 1.0);
+    }
 
-    void init(double seed) { ema_ = seed; initialized_ = true; }
+    explicit InlineEMA(int period) : period_(period), k_(compute_k(period)) {}
+
+    void init(double seed) noexcept { ema_ = seed; initialized_ = true; }
 
     inline double update(double value) noexcept {
         if (!initialized_) [[unlikely]] {
@@ -48,8 +53,9 @@ public:
         return ema_;
     }
 
-    double value() const noexcept { return ema_; }
-    bool ready() const noexcept { return initialized_; }
+    constexpr double value() const noexcept { return ema_; }
+    constexpr bool ready() const noexcept { return initialized_; }
+    constexpr double k() const noexcept { return k_; }
 
 private:
     int period_;
@@ -63,9 +69,13 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 class InlineRSI {
 public:
-    explicit InlineRSI(int period) : period_(period), inv_period_(1.0 / period) {}
+    static constexpr double compute_inv_period(int period) noexcept {
+        return 1.0 / static_cast<double>(period);
+    }
 
-    void init(double first_close) { prev_close_ = first_close; count_ = 1; }
+    explicit InlineRSI(int period) : period_(period), inv_period_(compute_inv_period(period)) {}
+
+    void init(double first_close) noexcept { prev_close_ = first_close; count_ = 1; }
 
     inline double update(double close) noexcept {
         if (count_ == 0) [[unlikely]] {
@@ -103,8 +113,8 @@ public:
         return rsi;
     }
 
-    double value() const noexcept { return rsi_; }
-    bool ready() const noexcept { return count_ >= period_; }
+    constexpr double value() const noexcept { return rsi_; }
+    constexpr bool ready() const noexcept { return count_ >= period_; }
 
 private:
     int period_;
@@ -121,7 +131,11 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 class InlineADX {
 public:
-    explicit InlineADX(int period) : period_(period), inv_period_(1.0 / period) {}
+    static constexpr double compute_inv_period(int period) noexcept {
+        return 1.0 / static_cast<double>(period);
+    }
+
+    explicit InlineADX(int period) : period_(period), inv_period_(compute_inv_period(period)) {}
 
     inline double update(double high, double low, double close) noexcept {
         if (count_ == 0) [[unlikely]] {
@@ -171,8 +185,8 @@ public:
         return adx_;
     }
 
-    double value() const noexcept { return adx_; }
-    bool ready() const noexcept { return count_ >= period_; }
+    constexpr double value() const noexcept { return adx_; }
+    constexpr bool ready() const noexcept { return count_ >= period_; }
 
 private:
     int period_;
@@ -194,14 +208,16 @@ class InlineVWAP {
 public:
     inline void update(double high, double low, double close, double volume) noexcept {
         double tp = (high + low + close) / 3.0;
+        // Welford's weighted: use previous mean for variance, then update
+        double prev_mean = cum_v_ > 0 ? cum_pv_ / cum_v_ : tp;
         cum_pv_ += tp * volume;
         cum_v_ += volume;
-        // Running variance: M2 += vol * (tp - mean)^2 (Welford's weighted)
-        double mean = cum_v_ > 0 ? cum_pv_ / cum_v_ : tp;
-        cum_var_ += volume * (tp - mean) * (tp - mean);
+        double new_mean = cum_pv_ / cum_v_;
+        // M2 += vol * (tp - prev_mean) * (tp - new_mean)  (Welford's weighted)
+        cum_var_ += volume * (tp - prev_mean) * (tp - new_mean);
     }
 
-    inline double value() const noexcept {
+    constexpr inline double value() const noexcept {
         return cum_v_ > 0 ? cum_pv_ / cum_v_ : 0.0;
     }
 
@@ -209,8 +225,8 @@ public:
         return cum_v_ > 0 ? std::sqrt(cum_var_ / cum_v_) : 0.0;
     }
 
-    // Deviation from VWAP in bps
-    inline double deviation_bps(double price) const noexcept {
+    // Deviation from VWAP in bps — constexpr-compatible arithmetic
+    constexpr inline double deviation_bps(double price) const noexcept {
         double v = value();
         return v > 0 ? (price - v) / v * 10000.0 : 0.0;
     }
@@ -234,7 +250,11 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 class InlineATR {
 public:
-    explicit InlineATR(int period) : period_(period), inv_period_(1.0 / period) {}
+    static constexpr double compute_inv_period(int period) noexcept {
+        return 1.0 / static_cast<double>(period);
+    }
+
+    explicit InlineATR(int period) : period_(period), inv_period_(compute_inv_period(period)) {}
 
     inline double update(double high, double low, double close) noexcept {
         if (count_ == 0) [[unlikely]] {
@@ -260,8 +280,8 @@ public:
         return atr_;
     }
 
-    double value() const noexcept { return atr_; }
-    bool ready() const noexcept { return count_ >= period_; }
+    constexpr double value() const noexcept { return atr_; }
+    constexpr bool ready() const noexcept { return count_ >= period_; }
 
 private:
     int period_;

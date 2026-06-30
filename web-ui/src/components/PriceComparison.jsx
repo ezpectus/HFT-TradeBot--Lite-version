@@ -1,23 +1,49 @@
-import { ArrowRightLeft } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { ArrowRightLeft, Search } from 'lucide-react'
 import { formatPrice } from '../utils/format'
+import { EmptyState } from './LoadingSkeleton'
+import { useDebounce } from '../hooks/useDebounce'
 
 export default function PriceComparison({ prices, symbols, selectedSymbol, exchanges }) {
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
+
+  const filteredSymbols = useMemo(() => {
+    if (!debouncedSearch) return symbols
+    const q = debouncedSearch.toUpperCase()
+    return symbols.filter(s => s.toUpperCase().includes(q))
+  }, [symbols, debouncedSearch])
+
   if (!prices || !Object.keys(prices).length) {
     return (
-      <div className="p-4 text-center text-gray-500 text-sm">
-        <ArrowRightLeft size={20} className="mx-auto mb-1 opacity-50" />
-        Waiting for price data...
-      </div>
+      <EmptyState
+        icon={ArrowRightLeft}
+        title="Waiting for price data"
+        subtitle="Cross-exchange prices will appear here when connected"
+      />
     )
   }
 
   return (
     <div className="p-2 space-y-2">
-      <div className="text-xs font-medium text-gray-400 mb-1 px-1">
-        Cross-Exchange Prices
+      <div className="flex items-center justify-between mb-1 px-1">
+        <span className="text-xs font-medium text-gray-400">
+          Cross-Exchange Prices
+        </span>
+        <div className="relative">
+          <Search size={10} className="absolute left-1 top-1/2 -translate-y-1/2 text-gray-600" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search..."
+            className="w-16 bg-bg-600 border border-bg-500 rounded pl-4 pr-1 py-0.5 text-[9px] text-gray-200 outline-none focus:border-accent-blue"
+            aria-label="Search symbols"
+          />
+        </div>
       </div>
 
-      {symbols.map(sym => {
+      {filteredSymbols.map(sym => {
         const exchangePrices = exchanges
           .map(ex => ({ exchange: ex, price: prices[ex]?.[sym] || 0 }))
           .filter(p => p.price > 0)

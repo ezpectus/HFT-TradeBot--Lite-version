@@ -16,6 +16,15 @@ from collections import defaultdict
 
 import websockets
 
+# Enable ANSI colors on Windows (VT100 processing)
+if sys.platform == 'win32':
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    except Exception:
+        pass
+
 EXCHANGE_WS = "ws://localhost:8765"
 SIGNAL_WS = "ws://localhost:8766"
 

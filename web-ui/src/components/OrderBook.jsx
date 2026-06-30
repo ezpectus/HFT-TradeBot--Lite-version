@@ -105,6 +105,30 @@ export default function OrderBook({ exchange, symbol, currentPrice, orderbookDat
         </div>
       </div>
 
+      {/* Cumulative depth profile */}
+      <div className="px-3 py-1 border-b border-bg-600">
+        <div className="text-[9px] text-gray-600 mb-0.5">Cumulative Depth Profile</div>
+        <div className="relative h-8 flex items-end" aria-label="Cumulative depth profile chart">
+          {bids.slice(0, 10).map((b, i) => {
+            const pct = (b.total / maxTotal) * 100
+            return (
+              <div key={`dp-b-${i}`} className="flex-1 flex flex-col justify-end" style={{ minWidth: '2px' }}>
+                <div className="bg-accent-green/40" style={{ height: `${pct}%` }} />
+              </div>
+            )
+          }).reverse()}
+          <div className="w-px h-full bg-bg-500 mx-px" />
+          {asks.slice(0, 10).map((a, i) => {
+            const pct = (a.total / maxTotal) * 100
+            return (
+              <div key={`dp-a-${i}`} className="flex-1 flex flex-col justify-end" style={{ minWidth: '2px' }}>
+                <div className="bg-accent-red/40" style={{ height: `${pct}%` }} />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Header row */}
       <div className="flex px-3 py-1 text-xs text-gray-500 border-b border-bg-600">
         <span className="w-1/3">Price</span>

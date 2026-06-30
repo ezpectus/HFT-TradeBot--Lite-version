@@ -17,34 +17,40 @@ export default function ExecutionBot({ currentPrice, onSubmit, connected, symbol
   const [progress, setProgress] = useState({ sent: 0, filled: 0, avgPrice: 0 })
   const [log, setLog] = useState([])
 
-  const sliceQty = useMemo(() => totalQty / slices, [totalQty, slices])
+  const sliceQty = useMemo(() => slices > 0 ? totalQty / slices : 0, [totalQty, slices])
   const sliceIdxRef = useRef(0)
   const intervalRef = useRef(null)
   const pricesRef = useRef([])
+  const currentPriceRef = useRef(currentPrice)
 
-  const stopExecution = () => {
+  useEffect(() => {
+    currentPriceRef.current = currentPrice
+  }, [currentPrice])
+
+  const stopExecution = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
     }
     setRunning(false)
-  }
+  }, [])
 
-  const sendSlice = () => {
+  const sendSlice = useCallback(() => {
     if (sliceIdxRef.current >= slices) {
       stopExecution()
       setLog(prev => [...prev, { time: Date.now(), msg: 'Execution complete', type: 'done' }])
       return
     }
 
-    let orderPrice = currentPrice
+    const price = currentPriceRef.current
+    let orderPrice = price
     if (strategy === 'vwap' && pricesRef.current.length > 0) {
       const recent = pricesRef.current.slice(-20)
       const vwap = recent.reduce((s, p) => s + p, 0) / recent.length
       orderPrice = vwap
     }
 
-    pricesRef.current.push(currentPrice)
+    pricesRef.current.push(price)
 
     if (onSubmit) {
       onSubmit({
@@ -64,12 +70,12 @@ export default function ExecutionBot({ currentPrice, onSubmit, connected, symbol
     })
     setLog(prev => [...prev.slice(-10), {
       time: Date.now(),
-      msg: `Slice ${sliceIdxRef.current}/${slices}: ${side} ${sliceQty.toFixed(4)} @ $${formatPrice(currentPrice)}`,
+      msg: `Slice ${sliceIdxRef.current}/${slices}: ${side} ${sliceQty.toFixed(4)} @ $${formatPrice(price)}`,
       type: 'slice',
     }])
-  }
+  }, [slices, side, sliceQty, strategy, onSubmit, symbol])
 
-  const startExecution = () => {
+  const startExecution = useCallback(() => {
     if (!connected || !onSubmit) return
     sliceIdxRef.current = 0
     pricesRef.current = []
@@ -79,7 +85,7 @@ export default function ExecutionBot({ currentPrice, onSubmit, connected, symbol
 
     sendSlice()
     intervalRef.current = setInterval(sendSlice, intervalSec * 1000)
-  }
+  }, [connected, onSubmit, intervalSec, sendSlice])
 
   useEffect(() => {
     return () => {

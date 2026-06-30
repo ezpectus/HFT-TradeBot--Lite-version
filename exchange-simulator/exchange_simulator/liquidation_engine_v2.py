@@ -131,15 +131,17 @@ class LiquidationEngineV2:
             qty_to_close = pos.qty * self.partial_liq_ratio
 
         # Execute liquidation
+        original_qty = pos.qty  # Capture before reduction
         pos.qty -= qty_to_close
-        pos.margin = max(pos.margin + pnl * (qty_to_close / (qty_to_close + pos.qty)), 0)
+        margin_ratio = qty_to_close / original_qty if original_qty > 0 else 0.0
+        pos.margin = max(pos.margin + pnl * margin_ratio, 0)
 
         # Update insurance fund
         if pnl < 0:
             self.insurance_fund -= loss
         else:
             # Profit from liquidated position goes to insurance fund
-            self.insurance_fund += min(pnl * (qty_to_close / (qty_to_close + pos.qty)), 0)
+            self.insurance_fund += pnl * margin_ratio
 
         self.insurance_fund_history.append(self.insurance_fund)
 

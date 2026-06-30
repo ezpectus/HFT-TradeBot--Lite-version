@@ -8,6 +8,9 @@ global:
   external_labels:
     monitor: "trading-system"
 
+rule_files:
+  - "alerts.yml"
+
 scrape_configs:
   # AI Signal Bot metrics
   - job_name: "ai-signal-bot"

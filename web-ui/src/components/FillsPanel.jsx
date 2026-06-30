@@ -1,11 +1,26 @@
-import { useMemo } from 'react'
-import { CheckCircle, XCircle, TrendingUp, TrendingDown } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { CheckCircle, XCircle, TrendingUp, TrendingDown, Search } from 'lucide-react'
 import { formatPrice, formatVolume, formatTime, colorForSide } from '../utils/format'
 import VirtualList from './VirtualList'
+import { EmptyState } from './LoadingSkeleton'
+import { useDebounce } from '../hooks/useDebounce'
 
 export default function FillsPanel({ fills }) {
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
+
+  const filteredFills = useMemo(() => {
+    if (!debouncedSearch) return fills
+    const q = debouncedSearch.toUpperCase()
+    return fills.filter(f =>
+      f.symbol?.toUpperCase().includes(q) ||
+      f.side?.toUpperCase().includes(q) ||
+      f.exchange?.toUpperCase().includes(q)
+    )
+  }, [fills, debouncedSearch])
+
   const stats = useMemo(() => {
-    const filled = fills.filter(f => f.status === 'FILLED')
+    const filled = filteredFills.filter(f => f.status === 'FILLED')
     const buyFills = filled.filter(f => f.side === 'BUY')
     const sellFills = filled.filter(f => f.side === 'SELL')
     const totalVolume = filled.reduce((s, f) => s + f.filled_quantity, 0)
@@ -26,14 +41,15 @@ export default function FillsPanel({ fills }) {
       sellVolume,
       buySellRatio,
     }
-  }, [fills])
+  }, [filteredFills])
 
   if (!fills.length) {
     return (
-      <div className="p-4 text-center text-gray-500 text-sm">
-        <CheckCircle size={24} className="mx-auto mb-2 opacity-50" />
-        No fills yet
-      </div>
+      <EmptyState
+        icon={CheckCircle}
+        title="No fills yet"
+        subtitle="Order fills will appear here when trades execute"
+      />
     )
   }
 
@@ -41,7 +57,12 @@ export default function FillsPanel({ fills }) {
     <div className="p-2 space-y-1">
       {/* Stats summary */}
       <div className="bg-bg-700 rounded-lg p-2.5 mb-2">
-        <div className="text-[10px] text-gray-500 uppercase mb-1.5">Fill Statistics</div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] text-gray-500 uppercase">Fill Statistics</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-bg-600 text-gray-400 font-mono">
+            {stats.total} {stats.total === 1 ? 'fill' : 'fills'}
+          </span>
+        </div>
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
             <div className="text-gray-500 text-[10px]">Total Fills</div>
@@ -78,14 +99,27 @@ export default function FillsPanel({ fills }) {
       </div>
 
       {/* Fill list */}
-      <div className="text-xs font-medium text-gray-400 mb-1 px-1">
-        Recent Fills ({fills.length})
+      <div className="flex items-center justify-between mb-1 px-1">
+        <span className="text-xs font-medium text-gray-400">
+          Recent Fills ({filteredFills.length}{debouncedSearch ? `/${fills.length}` : ''})
+        </span>
+        <div className="relative">
+          <Search size={10} className="absolute left-1 top-1/2 -translate-y-1/2 text-gray-600" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search..."
+            className="w-16 bg-bg-600 border border-bg-500 rounded pl-4 pr-1 py-0.5 text-[9px] text-gray-200 outline-none focus:border-accent-blue"
+            aria-label="Search fills by symbol, side, or exchange"
+          />
+        </div>
       </div>
       <VirtualList
-        items={fills}
+        items={filteredFills}
         itemHeight={64}
         maxHeight={400}
-        renderItem={(fill, i) => {
+        renderItem={(fill, _i) => {
           const isFilled = fill.status === 'FILLED'
           return (
             <div className="bg-bg-700 rounded p-2 text-xs mx-px">

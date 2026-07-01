@@ -14,7 +14,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN addgroup -r appuser && adduser -r -g appuser appuser
+RUN addgroup -S appuser && adduser -S -g appuser appuser
 
 COPY --from=builder /app/build /app/build
 COPY --from=builder /app/package*.json /app/

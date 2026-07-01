@@ -16,7 +16,7 @@ WORKDIR /app
 
 RUN addgroup -S appuser && adduser -S -g appuser appuser
 
-COPY --from=builder /app/build /app/build
+COPY --from=builder /app/dist /app/dist
 COPY --from=builder /app/package*.json /app/
 RUN npm ci --production && npm cache clean --force
 

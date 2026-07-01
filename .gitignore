@@ -164,6 +164,19 @@ notes.txt
 scratch/
 reorganize_components.py
 web-ui/coverage/
+fix*.py
+fix*.ps1
+temp_*.py
+temp_*.txt
+fix_output.txt
+fix_*.txt
+_convert_lazy.js
+error_monitor.py
+price_monitor.py
+
+# ─── Vendored deps ───
+vcpkg/
+websocketpp/
 
 # ─── Logs ───
 logs/

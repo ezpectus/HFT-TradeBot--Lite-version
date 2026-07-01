@@ -37,6 +37,9 @@ jobs:
   build-and-push:
     name: Build and Push Images
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         service: [exchange-simulator, ai-signal-bot, hft-trade-bot, web-ui]

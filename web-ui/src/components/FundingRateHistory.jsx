@@ -59,7 +59,7 @@ export default function FundingRateHistory({ fundingRates, candlesToFunding, sym
     )
   }
 
-  const { rates, sorted, avgRate, skew, path, zeroY, candlesToFunding, maxRate } = data
+  const { rates, sorted, avgRate, skew, path, zeroY, maxRate } = data
 
   return (
     <div className="bg-bg-700 rounded-lg p-2.5">

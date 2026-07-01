@@ -7,26 +7,26 @@ The system is a full-stack crypto HFT trading simulation platform consisting of 
 ```mermaid
 graph TB
     subgraph "Exchange Simulator (Python)"
-        ES[Exchange Simulator<br/>GBM + Fat-Tail + Jump Diffusion<br/>3 Exchanges | 3 Symbols<br/>Order Book | Funding | Liquidation]
+        ES["Exchange Simulator<br/>GBM + Fat-Tail + Jump Diffusion<br/>3 Exchanges | 3 Symbols<br/>Order Book | Funding | Liquidation"]
         WS8765[WebSocket :8765]
         WS8765 --- ES
     end
 
     subgraph "AI Signal Bot (Python)"
-        AI[AI Signal Bot<br/>8-Stage Pipeline<br/>Trend + MeanRev + FFT + Ensemble<br/>Risk Manager | Backtest Engine<br/>SQLite | Kelly Sizing]
+        AI["AI Signal Bot<br/>8-Stage Pipeline<br/>Trend + MeanRev + FFT + Ensemble<br/>Risk Manager | Backtest Engine<br/>SQLite | Kelly Sizing"]
         WS8766[Signal Publisher :8766]
         WS8766 --- AI
     end
 
     subgraph "HFT Trade Bot (C++20 v2.0)"
-        HFT[HFT Trade Bot v2.0<br/>Signal Engine V2 (6 indicators)<br/>Pressure Model | Smart Order Router V2<br/>Adaptive Order Selector V2<br/>Latency Histograms | Circuit Breaker<br/>SHM IPC | FIX 4.4 Protocol]
+        HFT["HFT Trade Bot v2.0<br/>Signal Engine V2 (6 indicators)<br/>Pressure Model | Smart Order Router V2<br/>Adaptive Order Selector V2<br/>Latency Histograms | Circuit Breaker<br/>SHM IPC | FIX 4.4 Protocol"]
         HFT --- WS8765
         HFT --- WS8766
         HFT -->|Orders| WS8765
     end
 
     subgraph "Web UI (React 18)"
-        UI[Web UI Dashboard<br/>201+ Components | 191+ Panels<br/>75+ Math Models | 7 Categories<br/>React.lazy | PWA | Web Worker<br/>Vitest | WCAG AA | Mock Mode]
+        UI["Web UI Dashboard<br/>201+ Components | 191+ Panels<br/>75+ Math Models | 7 Categories<br/>React.lazy | PWA | Web Worker<br/>Vitest | WCAG AA | Mock Mode"]
         UI --- WS8765
         UI --- WS8766
         UI -->|Orders| WS8765

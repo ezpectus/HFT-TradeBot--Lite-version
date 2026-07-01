@@ -20,25 +20,25 @@
 ```mermaid
 graph TB
     subgraph "Exchange Simulator (Python)"
-        ES[Exchange Simulator<br/>GBM + Fat-Tail + Jump Diffusion<br/>3 Exchanges | 3 Symbols<br/>Order Book | Funding | Liquidation]
+        ES["Exchange Simulator<br/>GBM + Fat-Tail + Jump Diffusion<br/>3 Exchanges | 3 Symbols<br/>Order Book | Funding | Liquidation"]
         WS8765[WebSocket :8765]
         WS8765 --- ES
     end
 
     subgraph "AI Signal Bot (Python)"
-        AI[AI Signal Bot<br/>8-Stage Pipeline<br/>Trend + MeanRev + FFT + Ensemble<br/>Backtesting | Risk Manager]
+        AI["AI Signal Bot<br/>8-Stage Pipeline<br/>Trend + MeanRev + FFT + Ensemble<br/>Backtesting | Risk Manager"]
         WS8766[Signal Publisher :8766]
         WS8766 --- AI
     end
 
     subgraph "HFT Trade Bot (C++20)"
-        HFT[HFT Trade Bot v2.0.0<br/>Signal Engine V2 (6 indicators)<br/>Smart Order Router V2<br/>Pressure Model | Adaptive Orders<br/>FIX 4.4 | SHM IPC]
+        HFT["HFT Trade Bot v2.0.0<br/>Signal Engine V2 (6 indicators)<br/>Smart Order Router V2<br/>Pressure Model | Adaptive Orders<br/>FIX 4.4 | SHM IPC"]
         HFT -->|orders| WS8765
         HFT -->|signals| WS8766
     end
 
     subgraph "Web UI (React 18)"
-        UI[Dashboard<br/>191+ Panels | 75+ Math Models<br/>PWA | Accessibility WCAG AA<br/>Mock Data Mode]
+        UI["Dashboard<br/>191+ Panels | 75+ Math Models<br/>PWA | Accessibility WCAG AA<br/>Mock Data Mode"]
         UI -->|market data + orders| WS8765
         UI -->|signals + backtest| WS8766
     end

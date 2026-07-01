@@ -4,8 +4,8 @@ __pycache__/
 *$py.class
 *.egg-info/
 *.egg
-dist/
-build/
+/dist/
+/build/
 .eggs/
 *.so
 *.whl
@@ -85,9 +85,9 @@ web-ui/.pnpm-debug.log*
 docker-compose.override.yml
 .docker/
 
-# ─── Project data ───
-data/
-logs/
+# ─── Project data (root-level only) ───
+/data/
+/logs/
 *.db
 *.db-shm
 *.db-wal
@@ -97,9 +97,9 @@ logs/
 *.parquet
 *.csv
 *.csv.gz
-backtest_charts/
-charts/
-exports/
+/backtest_charts/
+/charts/
+/exports/
 *.png
 *.jpg
 *.jpeg
@@ -178,15 +178,15 @@ price_monitor.py
 vcpkg/
 websocketpp/
 
-# ─── Logs ───
-logs/
+# ─── Logs (root-level only) ───
+/logs/
 *.log
 !**/run_logger.py
 !**/trade_csv_logger.py
 
 # ─── Trade CSV logs ───
-logs/*.csv
-logs/*.csv.gz
+/logs/*.csv
+/logs/*.csv.gz
 
 # ─── Netlify ───
 .netlify/

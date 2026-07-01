@@ -40,7 +40,8 @@ public:
         int gtd_seconds{30};
     };
 
-    explicit AdaptiveOrderSelectorV2(const Params& params = Params{}) : params_(params) {}
+    AdaptiveOrderSelectorV2() : AdaptiveOrderSelectorV2(Params{}) {}
+    explicit AdaptiveOrderSelectorV2(const Params& params) : params_(params) {}
 
     // Select order kind based on signal + market microstructure
     // Returns FastOrder::OrderKind + sets limit price

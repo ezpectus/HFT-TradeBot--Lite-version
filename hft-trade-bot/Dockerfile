@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libspdlog-dev \
     libfmt-dev \
     nlohmann-json3-dev \
-    libyaml-cpp-dev \
+    libyaml-cpp-dev libasio-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy source and build

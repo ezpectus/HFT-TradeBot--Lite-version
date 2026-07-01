@@ -87,8 +87,25 @@ find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 # nlohmann_json
 find_package(nlohmann_json REQUIRED)
-# yaml-cpp
+# yaml-cpp — robust target resolution for Debian/Ubuntu packages
 find_package(yaml-cpp REQUIRED)
+if(NOT TARGET yaml-cpp::yaml-cpp)
+    if(TARGET yaml-cpp)
+        add_library(yaml-cpp::yaml-cpp ALIAS yaml-cpp)
+    else()
+        find_library(YAML_CPP_LIB_RELEASE NAMES yaml-cpp)
+        find_path(YAML_CPP_INCLUDE_DIR NAMES yaml-cpp/yaml.h)
+        if(YAML_CPP_LIB_RELEASE AND YAML_CPP_INCLUDE_DIR)
+            add_library(yaml-cpp::yaml-cpp UNKNOWN IMPORTED)
+            set_target_properties(yaml-cpp::yaml-cpp PROPERTIES
+                IMPORTED_LOCATION "${YAML_CPP_LIB_RELEASE}"
+                INTERFACE_INCLUDE_DIRECTORIES "${YAML_CPP_INCLUDE_DIR}"
+            )
+        else()
+            message(FATAL_ERROR "yaml-cpp library not found — install libyaml-cpp-dev")
+        endif()
+    endif()
+endif()
 
 # simdjson (optional — for fast JSON parsing in hot path)
 find_package(simdjson QUIET)

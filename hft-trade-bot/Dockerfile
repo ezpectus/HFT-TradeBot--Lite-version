@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     libboost-dev \
     libboost-system-dev \
+    libboost-random-dev \
     libssl-dev \
     libwebsocketpp-dev \
     libspdlog-dev \
@@ -28,8 +29,9 @@ WORKDIR /app
 # Install runtime libraries only (no -dev packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libboost-system1.74.0 \
+    libboost-random1.74.0 \
     libssl3 \
-    libspdlog1 \
+    libspdlog1.10 \
     libfmt9 \
     libyaml-cpp0.7 \
     && rm -rf /var/lib/apt/lists/*

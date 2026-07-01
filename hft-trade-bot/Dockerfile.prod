@@ -4,7 +4,7 @@ FROM gcc:13-bookworm AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake libboost-system-dev libssl-dev \
+    cmake libboost-system-dev libboost-random-dev libssl-dev \
     libspdlog-dev libfmt-dev nlohmann-json3-dev \
     libyaml-cpp-dev libwebsocketpp-dev libasio-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -21,7 +21,7 @@ FROM debian:bookworm-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libboost-system1.81.0 libssl3 libspdlog1.10-fmt \
+    libboost-system1.81.0 libboost-random1.81.0 libssl3 libspdlog1.10-fmt \
     libyaml-cpp0.7 curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appuser && useradd -r -g appuser appuser

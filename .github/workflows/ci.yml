@@ -104,7 +104,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ccache \
-            libboost-dev libboost-system-dev \
+            libboost-dev libboost-system-dev libboost-random-dev \
             libssl-dev libwebsocketpp-dev \
             libspdlog-dev libfmt-dev \
             nlohmann-json3-dev libyaml-cpp-dev

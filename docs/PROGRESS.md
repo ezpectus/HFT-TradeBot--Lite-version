@@ -1715,7 +1715,7 @@
 - [x] Makefile: added `test-js`, `logs`, JS lint, coverage cleanup targets
 - [x] `.gitignore`: added CSV files, logs directory, trade logs, coverage, reorganize scripts
 - [x] `web-ui/.env.example`: added `VITE_MOCK_MODE` documentation
-- [x] LICENSE changed from MIT to Proprietary (All Rights Reserved, commercial use prohibited without permission)
+- [x] LICENSE changed to Apache License 2.0
 
 ### 40.6 Verification
 - [x] All documentation files verified and updated

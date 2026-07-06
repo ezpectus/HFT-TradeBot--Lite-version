@@ -321,7 +321,7 @@ crypto-trading-simulator/
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── README.md
-└── LICENSE                       # Proprietary (All Rights Reserved)
+└── LICENSE                       # Apache License 2.0
 ```
 
 ## Troubleshooting

@@ -20,7 +20,7 @@
 | CI/CD | GitHub Actions (4 jobs: Python, C++, JS, Docker) |
 | Testing | pytest (Python), C++ unit tests (30+ V2), Vitest + ESLint (JS) |
 | Logging | Timestamped logs + CSV trade logs with symlinks |
-| License | Proprietary (All Rights Reserved) |
+| License | Apache License 2.0 |
 
 ### Key Architectural Decisions
 

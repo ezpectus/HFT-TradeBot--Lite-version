@@ -18,8 +18,6 @@
 #   Log volumes are mounted: sim-logs, ai-logs, hft-logs.
 #   Trade CSV logs: /app/logs/trades_*.csv
 
-version: "3.9"
-
 services:
   exchange-simulator:
     build:

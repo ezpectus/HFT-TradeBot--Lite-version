@@ -1,8 +1,6 @@
 # Production Docker Compose — full trading system with real exchange connectivity
 # Usage: docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
-version: "3.9"
-
 services:
   # ── PostgreSQL — trades, signals, positions, candles persistence ──
   postgres:

@@ -2,8 +2,8 @@
 
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF.svg)
 ![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-61dafb.svg)
-![Coverage](https://img.shields.io/badge/coverage-60%2B%20tests-6e9f18.svg)
-![License](https://img.shields.io/badge/license-Proprietary-red.svg)
+![Coverage](https://img.shields.io/badge/coverage-75%2B%20tests-6e9f18.svg)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Live Demo](https://img.shields.io/badge/demo-coming%20soon-orange.svg)
 ![Panels](https://img.shields.io/badge/panels-191+-61dafb.svg)
 ![Math Models](https://img.shields.io/badge/math%20models-75+-a855f7.svg)
@@ -496,8 +496,6 @@ This is a **paper trading simulator** for educational purposes. No real exchange
 
 ## License
 
-**Proprietary — All Rights Reserved.** See [LICENSE](LICENSE)
-
-This software is proprietary and confidential. Unauthorized copying, distribution, modification, public upload, or resale is strictly prohibited. For licensing inquiries, contact the copyright holder directly.
+**Apache License 2.0.** See [LICENSE](LICENSE)
 
 This is **not** financial advice. This is **not** a trading bot for real exchanges. No real money is involved.

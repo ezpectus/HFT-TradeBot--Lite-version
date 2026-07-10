@@ -187,7 +187,7 @@ graph TB
 
 ```bat
 REM 1. Clone the repository
-git clone https://github.com/yourusername/hft-trading-system.git
+git clone https://github.com/ezpectus/hft-trading-system.git
 cd hft-trading-system
 
 REM 2. Install all dependencies (Python + C++ + Node.js)

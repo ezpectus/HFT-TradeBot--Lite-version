@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        compiler: [gcc-13, clang-17]
+        compiler: [gcc-14, clang-17]
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
@@ -123,7 +123,7 @@ jobs:
             sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
             sudo apt-get update && sudo apt-get install -y clang-17
           else
-            sudo apt-get install -y gcc-13 g++-13
+            sudo apt-get install -y gcc-14 g++-14
           fi
       - uses: actions/cache@v4
         with:
@@ -137,7 +137,7 @@ jobs:
             cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-17 \
               -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage"
           else
-            cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=g++-13 \
+            cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=g++-14 \
               -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="--coverage"
           fi
           make -j$(nproc)
@@ -145,7 +145,7 @@ jobs:
         working-directory: hft-trade-bot/build
         run: ctest --output-on-failure
       - name: Generate coverage report
-        if: matrix.compiler == 'gcc-13'
+        if: matrix.compiler == 'gcc-14'
         working-directory: hft-trade-bot/build
         run: |
           sudo apt-get install -y lcov
@@ -154,7 +154,7 @@ jobs:
           lcov --remove coverage.info '/usr/*' '*/tests/*' '*/doctest.h' \
             --output-file coverage.info
       - name: Upload coverage to Codecov
-        if: matrix.compiler == 'gcc-13'
+        if: matrix.compiler == 'gcc-14'
         uses: codecov/codecov-action@v4
         with:
           files: hft-trade-bot/build/coverage.info

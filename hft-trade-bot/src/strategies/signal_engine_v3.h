@@ -276,8 +276,8 @@ private:
     std::unordered_map<std::string, HMMState, StringHash, std::equal_to<>> hmm_states_;
 
 public:
-    explicit SignalEngineV3(const SignalEngineV2::Params& v2_params = SignalEngineV2::Params{},
-                            const Params& v3_params = Params{})
+    explicit SignalEngineV3(const SignalEngineV2::Params& v2_params,
+                            const Params& v3_params)
         : v2_engine_(v2_params), params_(v3_params) {}
 
     // Analyze with regime detection

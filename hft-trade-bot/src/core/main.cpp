@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
     // ─── Signal Engine V3 (HMM regime detection, optional) ───
     std::unique_ptr<SignalEngineV3> engine_v3;
     if (config.signal_engine_v3_enabled) {
-        engine_v3 = std::make_unique<SignalEngineV3>(v2_params);
+        engine_v3 = std::make_unique<SignalEngineV3>(v2_params, SignalEngineV3::Params{});
         spdlog::info("Signal Engine V3: HMM regime detection ENABLED");
     }
 

@@ -8,6 +8,7 @@ REM    3. C++:   HFT Trade Bot (CMake build + tests)
 REM    4. Rust:  HFT Executor (cargo build)
 REM    5. JS:    Web UI (lint + tests + build)
 REM    6. Python: New modules import check (ML, risk, research, pricing)
+REM    7. Docker: Prod image build verification (gcc:14, same as CI)
 REM
 REM  Usage: build-all.bat          — build + test everything
 REM         build-all.bat quick    — skip C++ build, just import checks
@@ -213,16 +214,16 @@ if defined VCPKG_ROOT (
     set CMAKE_EXTRA=-DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake
 )
 
-echo --- CMake Configure ---
-cmake .. -DCMAKE_BUILD_TYPE=Debug %CMAKE_EXTRA% -DWEBSOCKETPP_INCLUDE_DIR="%PROJECT_ROOT%websocketpp" 2>&1
+echo --- CMake Configure (Release, same as Docker) ---
+cmake .. -DCMAKE_BUILD_TYPE=Release %CMAKE_EXTRA% -DWEBSOCKETPP_INCLUDE_DIR="%PROJECT_ROOT%websocketpp" 2>&1
 if errorlevel 1 (
     echo [FAIL] CMake configuration failed
     set EXIT_CODE=1
     goto :cpp_done
 )
 
-echo --- CMake Build ---
-cmake --build . --config Debug -j 2>&1
+echo --- CMake Build (Release) ---
+cmake --build . --config Release -j 2>&1
 if errorlevel 1 (
     echo [FAIL] C++ build failed
     set EXIT_CODE=1
@@ -230,7 +231,7 @@ if errorlevel 1 (
 )
 
 echo --- C++ Tests (ctest) ---
-ctest --output-on-failure -C Debug 2>&1
+ctest --output-on-failure -C Release 2>&1
 if errorlevel 1 (
     echo [FAIL] C++ tests failed
     set EXIT_CODE=1
@@ -326,7 +327,59 @@ echo.
 cd /d "%PROJECT_ROOT%"
 :skip_js
 
-REM ── 6. Summary ─────────────────────────────────────────────
+REM ── 6. Docker Prod Build ────────────────────────────────────
+if /i "%MODE%"=="all" goto :docker
+if /i "%MODE%"=="docker" goto :docker
+goto :skip_docker
+
+:docker
+echo [6/7] Docker — Prod Image Build (gcc:14)
+echo -------------------------------------------
+where docker >nul 2>&1
+if errorlevel 1 (
+    echo [SKIP] Docker not found — install Docker Desktop
+    goto :skip_docker
+)
+
+echo --- HFT Trade Bot (Dockerfile.prod) ---
+docker buildx build -f "%PROJECT_ROOT%hft-trade-bot\Dockerfile.prod" -t hft-trade-bot:prod "%PROJECT_ROOT%hft-trade-bot" 2>&1
+if errorlevel 1 (
+    echo [FAIL] HFT Trade Bot Docker build failed
+    set EXIT_CODE=1
+) else (
+    echo [OK] HFT Trade Bot Docker image built
+)
+echo.
+echo --- Exchange Simulator ---
+docker buildx build -f "%PROJECT_ROOT%exchange_simulator\Dockerfile" -t hft-exchange-sim:prod "%PROJECT_ROOT%exchange_simulator" 2>&1
+if errorlevel 1 (
+    echo [FAIL] Exchange Simulator Docker build failed
+    set EXIT_CODE=1
+) else (
+    echo [OK] Exchange Simulator Docker image built
+)
+echo.
+echo --- AI Signal Bot ---
+docker buildx build -f "%PROJECT_ROOT%ai-signal-bot\Dockerfile" -t hft-ai-signal-bot:prod "%PROJECT_ROOT%ai-signal-bot" 2>&1
+if errorlevel 1 (
+    echo [FAIL] AI Signal Bot Docker build failed
+    set EXIT_CODE=1
+) else (
+    echo [OK] AI Signal Bot Docker image built
+)
+echo.
+echo --- Web UI ---
+docker buildx build -f "%PROJECT_ROOT%web-ui\Dockerfile" -t hft-web-ui:prod "%PROJECT_ROOT%web-ui" 2>&1
+if errorlevel 1 (
+    echo [FAIL] Web UI Docker build failed
+    set EXIT_CODE=1
+) else (
+    echo [OK] Web UI Docker image built
+)
+echo.
+:skip_docker
+
+REM ── 7. Summary ─────────────────────────────────────────────
 echo ============================================
 echo  BUILD SUMMARY
 echo ============================================
@@ -337,15 +390,17 @@ if /i "%MODE%"=="all" goto :summary_all
 if /i "%MODE%"=="python" goto :summary_python
 if /i "%MODE%"=="quick" goto :summary_quick
 if /i "%MODE%"=="cpp" goto :summary_cpp
+if /i "%MODE%"=="docker" goto :summary_all
 if /i "%MODE%"=="js" goto :summary_js
 goto :summary_all
 
 :summary_all
 echo  Exchange Simulator     Tested
 echo  AI Signal Bot          Tested + Imports
-echo  C++ HFT Trade Bot      Built + Tested
+echo  C++ HFT Trade Bot      Built + Tested (Release)
 echo  Rust Executor          Built
 echo  Web UI                 Linted + Tested + Built
+echo  Docker Prod            All images built (gcc:14)
 goto :summary_end
 
 :summary_python

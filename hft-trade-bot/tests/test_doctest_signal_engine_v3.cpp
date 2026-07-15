@@ -205,7 +205,7 @@ TEST_CASE("OnlineHMM log_gaussian is correct") {
 // ═══════════════════════════════════════════════════════════════════════════
 TEST_CASE("SignalEngineV3 construction with default params") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     // Accessors should work
     CHECK(engine.params().trend_boost == doctest::Approx(1.3));
@@ -215,7 +215,7 @@ TEST_CASE("SignalEngineV3 construction with default params") {
 
 TEST_CASE("SignalEngineV3 returns NEUTRAL for insufficient data") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     std::vector<Candle> candles(3);
     OrderBook ob = make_orderbook();
@@ -228,7 +228,7 @@ TEST_CASE("SignalEngineV3 returns NEUTRAL for insufficient data") {
 
 TEST_CASE("SignalEngineV3 tracks regime per symbol") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     // Feed trending-up data for BTCUSDT
     auto btc_prices = make_trending_up(150, 100.0, 0.003);
@@ -250,7 +250,7 @@ TEST_CASE("SignalEngineV3 tracks regime per symbol") {
 
 TEST_CASE("SignalEngineV3 regime confidence is between 0 and 1") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     auto prices = make_trending_up(100, 100.0, 0.002);
     auto candles = make_candles(prices, "BTCUSDT");
@@ -267,7 +267,7 @@ TEST_CASE("SignalEngineV3 regime confidence is between 0 and 1") {
 
 TEST_CASE("SignalEngineV3 current_volatility accessor") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     auto prices = make_volatile(100, 100.0, 0.02);
     auto candles = make_candles(prices, "BTCUSDT");
@@ -286,7 +286,7 @@ TEST_CASE("SignalEngineV3 current_volatility accessor") {
 
 TEST_CASE("SignalEngineV3 set_params changes behavior") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     SignalEngineV3::Params new_params;
     new_params.trend_boost = 2.0;
@@ -300,7 +300,7 @@ TEST_CASE("SignalEngineV3 set_params changes behavior") {
 TEST_CASE("SignalEngineV3 v2 accessor returns underlying engine") {
     SignalEngineV2::Params v2_params;
     v2_params.ema_fast_period = 10;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     const auto& v2 = engine.v2();
     CHECK(v2.params().ema_fast_period == 10);
@@ -308,7 +308,7 @@ TEST_CASE("SignalEngineV3 v2 accessor returns underlying engine") {
 
 TEST_CASE("SignalEngineV3 analyze_incremental returns valid signal") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     auto prices = make_trending_up(60, 100.0, 0.001);
     auto candles = make_candles(prices, "BTCUSDT");
@@ -328,7 +328,7 @@ TEST_CASE("SignalEngineV3 analyze_incremental returns valid signal") {
 
 TEST_CASE("SignalEngineV3 handles empty candles gracefully") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     OrderBook ob = make_orderbook();
     PressureModel pm;
@@ -340,7 +340,7 @@ TEST_CASE("SignalEngineV3 handles empty candles gracefully") {
 
 TEST_CASE("SignalEngineV3 unknown symbol returns RANGING") {
     SignalEngineV2::Params v2_params;
-    SignalEngineV3 engine(v2_params);
+    SignalEngineV3 engine(v2_params, SignalEngineV3::Params{});
 
     CHECK(engine.current_regime("UNKNOWN") == RegimeState::RANGING);
     CHECK(engine.regime_confidence("UNKNOWN") == doctest::Approx(0.0));

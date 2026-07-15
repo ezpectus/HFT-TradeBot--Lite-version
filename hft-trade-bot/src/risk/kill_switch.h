@@ -1,7 +1,7 @@
 // Kill switch — emergency stop for all trading activity.
 //
 // Activates via:
-// 1. File-based trigger: touch /tmp/kill_switch (external monitoring, cron, etc.)
+// 1. File-based trigger: touch logs/kill_switch_trigger (external monitoring, cron, etc.)
 // 2. Programmatic: activate() method (risk manager, manual button)
 // 3. Daily loss limit exceeded (auto-trigger from RiskManager)
 //
@@ -44,7 +44,7 @@ public:
     using CloseAllCallback = std::function<void()>;
     using NotifyCallback = std::function<void(Reason)>;
 
-    KillSwitch(const std::string& trigger_file = "/tmp/kill_switch",
+    KillSwitch(const std::string& trigger_file = "logs/kill_switch_trigger",
                const std::string& shm_name = "/hft_kill_switch")
         : trigger_file_(trigger_file)
         , shm_name_(shm_name)
@@ -98,9 +98,8 @@ public:
 
         // 5. Remove trigger file if it was a file trigger
         if (reason == Reason::FILE_TRIGGER) {
-#ifndef _WIN32
-            ::unlink(trigger_file_.c_str());
-#endif
+            std::error_code ec;
+            std::filesystem::remove(trigger_file_, ec);
         }
     }
 

@@ -21,6 +21,7 @@
 #include <thread>
 #include <atomic>
 #include <deque>
+#include <memory>
 
 namespace hft {
 
@@ -38,7 +39,7 @@ public:
                                                   double buy_price, double sell_price,
                                                   double spread_bps, double max_quantity)>;
 
-    explicit SignalReceiver(const std::string& ws_url) : ws_url_(ws_url) {}
+    explicit SignalReceiver(const std::string& ws_url) : ws_url_(ws_url), client_(std::make_unique<WSClient>()) {}
 
     // Register known symbols for numeric ID-based fast path lookups
     void register_symbols(const std::vector<std::string>& symbols) {
@@ -116,8 +117,10 @@ public:
 
     bool do_connect() {
         try {
-            client_.init_asio();
-            client_.set_open_handler([this](websocketpp::connection_hdl hdl) {
+            // Recreate client on each connect — websocketpp init_asio() must not be called twice
+            client_ = std::make_unique<WSClient>();
+            client_->init_asio();
+            client_->set_open_handler([this](websocketpp::connection_hdl hdl) {
                 connected_ = true;
                 connection_ = hdl;
                 reconnect_delay_ = 1000; // Reset backoff on success
@@ -125,10 +128,10 @@ public:
 
                 // Send subscribe message with protocol version 2 and msgpack encoding (HFT-O15)
                 json sub = {{"type", "subscribe"}, {"protocol_version", 2}, {"encoding", "msgpack"}};
-                client_.send(hdl, sub.dump(), websocketpp::frame::opcode::text);
+                client_->send(hdl, sub.dump(), websocketpp::frame::opcode::text);
             });
 
-            client_.set_close_handler([this](websocketpp::connection_hdl) {
+            client_->set_close_handler([this](websocketpp::connection_hdl) {
                 connected_ = false;
                 spdlog::warn("SignalReceiver disconnected");
                 if (should_reconnect_) {
@@ -145,7 +148,7 @@ public:
                 }
             });
 
-            client_.set_message_handler([this](websocketpp::connection_hdl,
+            client_->set_message_handler([this](websocketpp::connection_hdl,
                 WSClient::message_ptr msg) {
                 if (msg->get_opcode() == websocketpp::frame::opcode::binary) {
                     // Binary frame — server sent msgpack (HFT-O15)
@@ -159,14 +162,14 @@ public:
             });
 
             websocketpp::lib::error_code ec;
-            auto con = client_.get_connection(ws_url_, ec);
+            auto con = client_->get_connection(ws_url_, ec);
             if (ec) {
                 spdlog::error("SignalReceiver connect error: {}", ec.message());
                 return false;
             }
 
-            client_.connect(con);
-            ws_thread_ = std::thread([this]() { client_.run(); });
+            client_->connect(con);
+            ws_thread_ = std::thread([this]() { client_->run(); });
             return true;
         } catch (const std::exception& e) {
             spdlog::error("SignalReceiver connect failed: {}", e.what());
@@ -177,7 +180,7 @@ public:
     void disconnect() {
         should_reconnect_ = false;
         if (connected_) {
-            client_.close(connection_, websocketpp::close::status::normal, "shutdown");
+            client_->close(connection_, websocketpp::close::status::normal, "shutdown");
         }
         if (ws_thread_.joinable()) ws_thread_.join();
         connected_ = false;
@@ -585,7 +588,7 @@ private:
     }
 
     std::string ws_url_;
-    WSClient client_;
+    std::unique_ptr<WSClient> client_;
     websocketpp::connection_hdl connection_;
     std::thread ws_thread_;
     std::atomic<bool> connected_{false};

@@ -12,6 +12,7 @@
 #include <mutex>
 #include <atomic>
 #include <cstdio>
+#include <memory>
 
 namespace hft {
 
@@ -22,7 +23,7 @@ using MessageHandler = std::function<void(const json&)>;
 class OrderExecutor {
 public:
     OrderExecutor(const std::string& ws_url, const std::string& exchange_id)
-        : ws_url_(ws_url), exchange_id_(exchange_id) {}
+        : ws_url_(ws_url), exchange_id_(exchange_id), client_(std::make_unique<WSClient>()) {}
 
     bool connect() {
         should_reconnect_ = true;
@@ -31,16 +32,18 @@ public:
 
     bool do_connect() {
         try {
-            client_.init_asio();
+            // Recreate client on each connect — websocketpp init_asio() must not be called twice
+            client_ = std::make_unique<WSClient>();
+            client_->init_asio();
 
-            client_.set_open_handler([this](websocketpp::connection_hdl hdl) {
+            client_->set_open_handler([this](websocketpp::connection_hdl hdl) {
                 connection_ = hdl;
                 connected_ = true;
                 reconnect_delay_ = 1000;
                 spdlog::info("OrderExecutor connected to {}", ws_url_);
             });
 
-            client_.set_close_handler([this](websocketpp::connection_hdl) {
+            client_->set_close_handler([this](websocketpp::connection_hdl) {
                 connected_ = false;
                 spdlog::warn("OrderExecutor disconnected");
                 if (should_reconnect_) {
@@ -58,16 +61,16 @@ public:
             });
 
             websocketpp::lib::error_code ec;
-            auto con = client_.get_connection(ws_url_, ec);
+            auto con = client_->get_connection(ws_url_, ec);
             if (ec) {
                 spdlog::error("WebSocket connect error: {}", ec.message());
                 return false;
             }
 
-            client_.connect(con);
+            client_->connect(con);
 
             // Run client in background thread
-            ws_thread_ = std::thread([this]() { client_.run(); });
+            ws_thread_ = std::thread([this]() { client_->run(); });
             return true;
         } catch (const std::exception& e) {
             spdlog::error("OrderExecutor connect failed: {}", e.what());
@@ -78,7 +81,7 @@ public:
     void disconnect() {
         should_reconnect_ = false;
         if (connected_) {
-            client_.close(connection_, websocketpp::close::status::normal, "shutdown");
+            client_->close(connection_, websocketpp::close::status::normal, "shutdown");
         }
         if (ws_thread_.joinable()) ws_thread_.join();
         connected_ = false;
@@ -118,7 +121,7 @@ public:
         }
 
         websocketpp::lib::error_code ec;
-        client_.send(connection_, std::string(buf, n), websocketpp::frame::opcode::text, ec);
+        client_->send(connection_, std::string(buf, n), websocketpp::frame::opcode::text, ec);
         if (ec) [[unlikely]] {
             spdlog::error("Failed to send order: {}", ec.message());
         } else {
@@ -138,7 +141,7 @@ public:
             exchange_id_.c_str(), symbol.c_str());
 
         websocketpp::lib::error_code ec;
-        client_.send(connection_, std::string(buf, n), websocketpp::frame::opcode::text, ec);
+        client_->send(connection_, std::string(buf, n), websocketpp::frame::opcode::text, ec);
         spdlog::info("Close position request: {} on {}", symbol, exchange_id_);
     }
 
@@ -171,13 +174,13 @@ public:
             sell_exchange.c_str(), symbol.c_str(), quantity);
 
         websocketpp::lib::error_code ec;
-        client_.send(connection_, std::string(buy_buf, bn), websocketpp::frame::opcode::text, ec);
+        client_->send(connection_, std::string(buy_buf, bn), websocketpp::frame::opcode::text, ec);
         if (ec) [[unlikely]] {
             spdlog::error("Arb buy order failed: {}", ec.message());
             return;
         }
 
-        client_.send(connection_, std::string(sell_buf, sn), websocketpp::frame::opcode::text, ec);
+        client_->send(connection_, std::string(sell_buf, sn), websocketpp::frame::opcode::text, ec);
         if (ec) [[unlikely]] {
             spdlog::error("Arb sell order failed: {}", ec.message());
             return;
@@ -191,7 +194,7 @@ public:
 private:
     std::string ws_url_;
     std::string exchange_id_;
-    WSClient client_;
+    std::unique_ptr<WSClient> client_;
     websocketpp::connection_hdl connection_;
     std::thread ws_thread_;
     std::atomic<bool> connected_{false};

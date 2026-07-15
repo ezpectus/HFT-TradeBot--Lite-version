@@ -10,7 +10,7 @@ namespace hft::ipc {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Signal struct — 32 bytes
-// Python: struct.Struct('<Q B B f f f f B 3x')
+// Python: struct.Struct('<Q B B f f f f B 5x')
 // ─────────────────────────────────────────────────────────────────────────────
 #pragma pack(push, 1)
 struct SignalMsg {

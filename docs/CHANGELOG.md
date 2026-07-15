@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [6.1.0] — Runtime Bug Fixes: Race Condition + WebSocket Reconnect + Kill Switch + SHM Alignment
+
+### Fixed — Race Condition in ai_signal_queue (CRITICAL)
+
+- **SPSCQueue with two producers** — `SPSCQueue<Signal, 16>` is a Single-Producer Single-Consumer queue, but both the SHM IPC callback thread and the WebSocket callback thread called `push()`. Two concurrent `push()` calls race on `head_` atomic, can write the same buffer slot, and silently lose signals. Added `std::mutex ai_signal_queue_mtx` with `std::lock_guard` around both `push()` sites. `pop()` remains lock-free (single consumer in main loop). Signal rate is ~1-10/sec, so mutex overhead is negligible.
+  - Files: `hft-trade-bot/src/core/main.cpp`
+
+### Fixed — WebSocket reconnect: websocketpp init_asio() double-call
+
+- **SignalReceiver and OrderExecutor** — On reconnect, `do_connect()` called `client_.init_asio()` on the same `WSClient` object. websocketpp does not support calling `init_asio()` twice — it can cause undefined behavior, stale handlers, or silent failure to reconnect. Changed `WSClient client_` from value member to `std::unique_ptr<WSClient> client_`. On each `do_connect()`, the client is recreated via `std::make_unique<WSClient>()` before calling `init_asio()`. All `client_.` references updated to `client_->`.
+  - Files: `hft-trade-bot/src/communication/signal_receiver.h`, `hft-trade-bot/src/execution/order_executor.h`
+
+### Fixed — Kill switch: cross-platform trigger file + faster polling
+
+- **Trigger file path** — Changed default from `/tmp/kill_switch` (Linux-only, missing on Windows) to `logs/kill_switch_trigger` (cross-platform, matches existing log message in main.cpp).
+- **Poll interval** — Reduced from 1000ms to 250ms to minimize chance of missing a trigger file that is created and removed quickly. Now configurable via `config.kill_switch_poll_interval_ms`.
+- **File cleanup** — Replaced platform-specific `#ifndef _WIN32 ::unlink()` with cross-platform `std::filesystem::remove()`. Trigger file is now properly removed on both Windows and Linux after activation.
+- `main.cpp` now uses `config.kill_switch_poll_interval_ms` instead of hardcoded `1000`.
+  - Files: `hft-trade-bot/src/core/config.h`, `hft-trade-bot/src/risk/kill_switch.h`, `hft-trade-bot/src/core/main.cpp`
+
+### Fixed — SHM IPC: comment mismatch in shm_protocol.h
+
+- **SignalMsg comment** — C++ comment said `struct.Struct('<Q B B f f f f B 3x')` but Python actually uses `B 5x` (matching `pad_[5]` in the C++ struct). Code was correct, comment was wrong. Fixed.
+  - Files: `hft-trade-bot/src/ipc/shm_protocol.h`
+
+### Added — SHM IPC struct alignment roundtrip tests
+
+- **Python→C++ binary layout verification** — New test file `test_shm_struct_alignment.py` verifies that Python `struct.Struct` definitions produce byte-for-byte identical layout to C++ `#pragma pack(push, 1)` structs. Tests cover all 4 SHM structs: `SignalMsg` (32 bytes), `FillMsg` (28 bytes), `MarketSnapshotMsg` (28 bytes), `KillSwitchMsg` (16 bytes). Each test verifies: size, field offsets, roundtrip pack/unpack with known values, and padding bytes are zero.
+  - Files: `ai-signal-bot/tests/unit/test_shm_struct_alignment.py`
+
+### Verified — No bugs found
+
+- **SHM struct alignment** — All 3 active structs (SignalMsg, FillMsg, MarketSnapshotMsg) match byte-for-byte between Python and C++. `static_assert` in C++ and `struct.Struct.size` in Python both enforce correct sizes.
+- **Orderbook delta insertion sort** — Bids sorted descending (`a.price > b.price`), asks ascending (`a.price < b.price`). `find_if` → update/insert/remove logic is correct.
+- **Multi-exchange routing (SmartOrderRouterV2)** — Routing logic is sound (filter by availability/toxicity, score by strategy, pick best). Not tested with live exchange APIs but no code bugs.
+- **WebSocket exponential backoff** — Detached reconnect thread sleeps 1s+ before joining `ws_thread_`. By then `client_.run()` has returned and join is non-blocking. Backoff caps at 30s. Logic is correct.
+
+---
+
 ## [6.0.0] — Production Integration + Protocol v2 + Helm + Options + MessagePack + Structured Logging
 
 ### Added — Production Integration (P2.x)

@@ -145,8 +145,8 @@ struct Config {
     int ipc_fills_capacity{4096};
     std::string ipc_market_data_shm{"/hft_market"};
     int ipc_market_data_max_symbols{10};
-    std::string kill_switch_trigger_file{"/tmp/kill_switch"};
-    int kill_switch_poll_interval_ms{1000};
+    std::string kill_switch_trigger_file{"logs/kill_switch_trigger"};
+    int kill_switch_poll_interval_ms{250};
 
     // FIX 4.4
     bool fix_enabled{false};

@@ -69,6 +69,7 @@
 #include <filesystem>
 #include <cstring>
 #include <memory>
+#include <mutex>
 
 using json = nlohmann::json;
 using namespace hft;
@@ -320,7 +321,7 @@ int main(int argc, char* argv[]) {
         spdlog::critical("KILL SWITCH ACTIVATED: reason={}", reason_str[static_cast<int>(reason)]);
     });
     kill_switch.init_shm();
-    kill_switch.start_monitoring(1000);
+    kill_switch.start_monitoring(config.kill_switch_poll_interval_ms);
     spdlog::info("Kill switch armed (trigger: logs/kill_switch_trigger)");
 
     // ─── System Monitor — health metrics ───
@@ -331,8 +332,11 @@ int main(int argc, char* argv[]) {
     health_server.start(&sys_monitor);
 
     // AI signal state (declared early — used by both WebSocket and SHM IPC callbacks)
-    // SPSC queue: producer = callback thread, consumer = main loop (lock-free)
+    // SPSC queue: consumer = main loop (lock-free pop)
+    // NOTE: SPSC assumes single producer, but SHM + WS callbacks can both push.
+    // Mutex protects push only — pop is single-threaded in main loop.
     SPSCQueue<Signal, 16> ai_signal_queue;
+    std::mutex ai_signal_queue_mtx;
 
     // ─── SHM IPC — Python↔C++ shared memory (production only) ───
     std::unique_ptr<ipc::ShmSignalConsumer> shm_signal_consumer;
@@ -364,6 +368,7 @@ int main(int argc, char* argv[]) {
                 sig.leverage = msg.leverage;
 
                 if (sig.direction == "LONG" || sig.direction == "SHORT") {
+                    std::lock_guard<std::mutex> lk(ai_signal_queue_mtx);
                     ai_signal_queue.push(sig);
                     sys_monitor.increment(SystemMonitor::Metric::SIGNALS_RECEIVED);
                 }
@@ -401,6 +406,7 @@ int main(int argc, char* argv[]) {
     if (ai_signal_receiver) {
         ai_signal_receiver->on_signal([&](const Signal& sig) {
             if (sig.direction == "LONG" || sig.direction == "SHORT") {
+                std::lock_guard<std::mutex> lk(ai_signal_queue_mtx);
                 ai_signal_queue.push(sig);
                 sys_monitor.increment(SystemMonitor::Metric::SIGNALS_RECEIVED);
             }

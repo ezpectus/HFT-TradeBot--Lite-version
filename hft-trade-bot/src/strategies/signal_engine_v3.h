@@ -33,13 +33,7 @@
 
 namespace hft {
 
-// Transparent string hash for unordered_map — enables find(string_view) without allocating
-struct StringHash {
-    using is_transparent = void;
-    size_t operator()(std::string_view sv) const noexcept {
-        return std::hash<std::string_view>{}(sv);
-    }
-};
+// StringHash is defined in signal_engine_v2.h — reused here (V2 is always included before V3)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HMM Regime States
@@ -282,8 +276,8 @@ private:
     std::unordered_map<std::string, HMMState, StringHash, std::equal_to<>> hmm_states_;
 
 public:
-    explicit SignalEngineV3(const SignalEngineV2::Params& v2_params = {},
-                            const Params& v3_params = {})
+    explicit SignalEngineV3(const SignalEngineV2::Params& v2_params = SignalEngineV2::Params{},
+                            const Params& v3_params = Params{})
         : v2_engine_(v2_params), params_(v3_params) {}
 
     // Analyze with regime detection
@@ -296,7 +290,7 @@ public:
         int64_t timestamp_ns
     ) noexcept {
         // Get base signal from V2
-        FastSignal base = v2_engine_.analyze_raw(symbol, candles, n, ob, pressure, timestamp_ns);
+        FastSignal base = v2_engine_.analyze(symbol, candles, n, ob, pressure, timestamp_ns);
 
         if (n == 0) return base;
 

@@ -105,3 +105,9 @@ logging:
   file: "logs/ai_signal_bot.log"
   trades_csv: "logs/trades.csv"  # Flat CSV export of all fills
   signals_csv: "logs/signals.csv" # Flat CSV export of all signals
+
+# Metrics (Prometheus)
+metrics:
+  enabled: false                 # Off by default in dev (enable with --metrics flag)
+  port: 8080                     # Metrics HTTP server port
+  host: "localhost"              # Bind address

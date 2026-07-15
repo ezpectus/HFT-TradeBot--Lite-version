@@ -397,14 +397,14 @@ private:
                                 double qty = d.value("q", 0.0);
                                 auto& bids = ob.bids;
                                 auto lit = std::find_if(bids.begin(), bids.end(),
-                                    [price](const PriceLevel& l) { return l.price == price; });
+                                    [price](const OrderBookLevel& l) { return l.price == price; });
                                 if (qty > 0.0) {
                                     if (lit != bids.end()) {
                                         lit->quantity = qty;  // Update existing
                                     } else {
                                         // Insertion sort: find position and insert (O(n) vs O(n log n) for std::sort)
                                         bids.push_back({price, qty});
-                                        auto cmp = [](const PriceLevel& a, const PriceLevel& b) { return a.price > b.price; };
+                                        auto cmp = [](const OrderBookLevel& a, const OrderBookLevel& b) { return a.price > b.price; };
                                         auto last = bids.end() - 1;
                                         while (last != bids.begin() && cmp(*last, *(last - 1))) {
                                             std::iter_swap(last, last - 1);
@@ -424,14 +424,14 @@ private:
                                 double qty = d.value("q", 0.0);
                                 auto& asks = ob.asks;
                                 auto lit = std::find_if(asks.begin(), asks.end(),
-                                    [price](const PriceLevel& l) { return l.price == price; });
+                                    [price](const OrderBookLevel& l) { return l.price == price; });
                                 if (qty > 0.0) {
                                     if (lit != asks.end()) {
                                         lit->quantity = qty;
                                     } else {
                                         // Insertion sort: find position and insert
                                         asks.push_back({price, qty});
-                                        auto cmp = [](const PriceLevel& a, const PriceLevel& b) { return a.price < b.price; };
+                                        auto cmp = [](const OrderBookLevel& a, const OrderBookLevel& b) { return a.price < b.price; };
                                         auto last = asks.end() - 1;
                                         while (last != asks.begin() && cmp(*last, *(last - 1))) {
                                             std::iter_swap(last, last - 1);

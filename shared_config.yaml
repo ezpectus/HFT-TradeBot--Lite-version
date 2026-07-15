@@ -16,7 +16,7 @@
 
 system:
   name: "HFT Trading System"
-  version: "2.2.0"
+  version: "3.0.0"
   mode: "paper_trading"  # paper_trading | live (live not implemented)
 
 # Symbols traded across all components — must match exchange simulator config
@@ -59,6 +59,8 @@ websocket:
   exchange_simulator:
     host: localhost              # Exchange simulator WebSocket server
     port: 8765                   # Candles, orderbooks, accounts, fills
+    metrics_port: 8775           # Prometheus metrics (port + 10)
   ai_signal_bot:
     host: localhost              # AI signal publisher WebSocket server
     port: 8766                   # Signals, regime, backtest results
+    metrics_port: 8080           # Prometheus metrics

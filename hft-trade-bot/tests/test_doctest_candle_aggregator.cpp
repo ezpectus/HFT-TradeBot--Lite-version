@@ -14,7 +14,7 @@ using namespace hft;
 // Construction & config
 // ═══════════════════════════════════════════════════════════════════════════
 TEST_CASE("CandleAggregator: time-based construction") {
-    CandleAggregator agg("BTCUSDT", "binance", 5);
+    CandleAggregator agg("BTCUSDT", "binance", static_cast<int64_t>(5));
     CHECK(agg.mode() == CandleMode::TIME);
     CHECK(agg.interval_ns() == 5 * 1'000'000'000LL);
     CHECK(agg.candle_count() == 0);

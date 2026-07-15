@@ -142,7 +142,7 @@ echo.
 echo  Services:
 echo    Exchange Simulator  — ws://localhost:8765
 echo    AI Signal Bot       — ws://localhost:8766
-echo    HFT Trade Bot       — ws://localhost:8767 (if built)
+echo    HFT Trade Bot       — C++ engine (connects to :8765 + :8766)
 echo    Web UI              — http://localhost:3000
 echo.
 endlocal

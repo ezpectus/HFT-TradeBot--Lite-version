@@ -148,7 +148,7 @@ python -c "from src.data_collection.timescaledb_client import TimescaleDBClient;
 if errorlevel 1 ( echo    [FAIL] & set EXIT_CODE=1 )
 
 echo   [Observability] tracing...
-python -c "from src.observability.tracing import init_tracing; print('    [OK]')" 2>&1
+python -c "from src.observability.tracing import setup_tracing; print('    [OK]')" 2>&1
 if errorlevel 1 ( echo    [FAIL] & set EXIT_CODE=1 )
 
 echo   [Observability] logging...

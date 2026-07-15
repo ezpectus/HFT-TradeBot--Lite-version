@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 from src.risk.portfolio_optimizer import PortfolioOptimizer, PortfolioResult
-from src.risk.kelly import KellyCalculator
+from src.risk.kelly import KellyPositionSizer
 
 
 def make_returns(n=300, n_assets=3):

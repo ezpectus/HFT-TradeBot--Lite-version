@@ -1,3 +1,15 @@
+#ifdef _WIN32
+  #ifndef NOMINMAX
+  #define NOMINMAX
+  #endif
+  #ifndef WIN32_LEAN_AND_MEAN
+  #define WIN32_LEAN_AND_MEAN
+  #endif
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+  #pragma comment(lib, "ws2_32.lib")
+#endif
+
 // Main entry point — HFT Trade Bot v2.0
 //
 // Connects to the exchange simulator, receives market data and AI signals,
@@ -613,8 +625,8 @@ int main(int argc, char* argv[]) {
                 auto risk_result = risk_mgr.check_signal(sig, current_balance, pos_mgr.position_count());
                 if (!risk_result.passed) continue;
 
-                // Check if we already have a position for this symbol (HFT-O11: numeric ID)
-                if (pos_mgr.has_position_by_id(sym_id)) continue;
+                // Check if we already have a position for this symbol
+                if (pos_mgr.has_position(symbol)) continue;
 
                 // Calculate position size
                 double qty = risk_mgr.calculate_position_size(sig, current_balance);

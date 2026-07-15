@@ -14,6 +14,7 @@ struct Signal {
     double entry_price{};
     double stop_loss{};
     double take_profit{};
+    uint8_t leverage{1};
     std::string reason;
     int64_t timestamp{};
 

@@ -19,7 +19,8 @@ web-ui/dist
 web-ui/node_modules
 hft-trade-bot/build
 ai-signal-bot/__pycache__
-exchange-simulator/__pycache__
+exchange_simulator/__pycache__
+exchange_simulator/exchange_simulator/__pycache__
 **/*.pyc
 **/*.o
 **/*.a

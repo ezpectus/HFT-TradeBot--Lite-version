@@ -149,8 +149,8 @@ TEST_CASE("MarketMakingV2 spread within floor and cap") {
     MarketMakingV2 mm;
     for (int i = 0; i < 20; ++i) {
         auto q = mm.generate_quotes(50000.0 + i * 10, 0.0, 0.0, i * 1000000000ULL);
-        CHECK(q.spread >= mm.config_.spread_floor - 1e-10);
-        CHECK(q.spread <= mm.config_.spread_cap + 1e-10);
+        CHECK(q.spread >= mm.config().spread_floor - 1e-10);
+        CHECK(q.spread <= mm.config().spread_cap + 1e-10);
     }
 }
 
@@ -159,7 +159,7 @@ TEST_CASE("MarketMakingV2 spread within floor and cap") {
 // ═══════════════════════════════════════════════════════════════════════════
 TEST_CASE("MarketMakingV2 stops bidding at max long inventory") {
     MarketMakingV2 mm;
-    auto q = mm.generate_quotes(50000.0, mm.config_.max_inventory, 0.0, 0);
+    auto q = mm.generate_quotes(50000.0, mm.config().max_inventory, 0.0, 0);
     CHECK(q.bid_price == doctest::Approx(0.0));
     CHECK(q.bid_size == doctest::Approx(0.0));
     CHECK(q.ask_price > 0.0);
@@ -167,7 +167,7 @@ TEST_CASE("MarketMakingV2 stops bidding at max long inventory") {
 
 TEST_CASE("MarketMakingV2 stops asking at max short inventory") {
     MarketMakingV2 mm;
-    auto q = mm.generate_quotes(50000.0, -mm.config_.max_inventory, 0.0, 0);
+    auto q = mm.generate_quotes(50000.0, -mm.config().max_inventory, 0.0, 0);
     CHECK(q.ask_price == doctest::Approx(0.0));
     CHECK(q.ask_size == doctest::Approx(0.0));
     CHECK(q.bid_price > 0.0);
@@ -186,7 +186,7 @@ TEST_CASE("MarketMakingV2 reset clears state") {
 
     mm.reset();
     CHECK(mm.reservation_price() == doctest::Approx(0.0));
-    CHECK(mm.current_sigma() == doctest::Approx(mm.config_.sigma));
+    CHECK(mm.current_sigma() == doctest::Approx(mm.config().sigma));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -161,6 +161,9 @@ private:
     }
 
     Config config_;
+public:
+    const Config& config() const { return config_; }
+private:
     double current_sigma_{0.01};
     double vol_ewma_{0.0001};
     double last_mid_{0.0};

@@ -103,6 +103,12 @@ latency_optimization:
   execution_core_id: 0          # CPU core ID for thread pinning (0-indexed)
   latency_histogram_enabled: true # Track P50/P95/P99/P99.9 latency distributions
 
+# ─── Metrics (Prometheus) ───
+metrics:
+  enabled: false                # Off by default in dev (enable for monitoring)
+  port: 9091                    # Metrics HTTP server port
+  host: "localhost"             # Bind address
+
 logging:
   level: "info"                 # debug | info | warn | error
   file: "logs/hft_trade_bot.log"

@@ -66,6 +66,9 @@ CMakeCache.txt
 cmake_install.cmake
 cmake-build-*/
 
+# Rust
+hft-executor/target/
+
 # ─── Node / Web UI ───
 web-ui/node_modules/
 web-ui/dist/
@@ -170,3 +173,18 @@ websocketpp/
 
 # ─── Netlify ───
 .netlify/
+
+# ─── Secrets management ───
+.sops.yaml
+keys.txt
+*.age
+*.enc.yaml
+*.enc.yml
+deploy/k8s/secrets.enc.yaml
+
+# ─── Root-level stray files ───
+/package-lock.json
+/build/
+
+# ─── Helm deploy artifacts ───
+deploy/helm/charts/

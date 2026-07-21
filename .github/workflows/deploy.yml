@@ -6,6 +6,13 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   deploy-web-ui:
     name: Deploy Web UI to Netlify
@@ -37,6 +44,7 @@ jobs:
   build-and-push:
     name: Build and Push Images
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -85,6 +93,7 @@ jobs:
   deploy:
     name: Deploy to Server
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: build-and-push
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -114,6 +123,7 @@ jobs:
   health-check:
     name: Post-Deploy Health Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: deploy
     steps:
       - name: Check health endpoints
@@ -143,7 +153,7 @@ jobs:
     steps:
       - name: Discord notification
         if: ${{ vars.DISCORD_WEBHOOK_URL != '' }}
-        uses: Ilshidur/action-discord@master
+        uses: Ilshidur/action-discord@0.4.0
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         with:
@@ -151,7 +161,7 @@ jobs:
 
       - name: Telegram notification
         if: ${{ vars.TELEGRAM_BOT_TOKEN != '' }}
-        uses: appleboy/telegram-action@master
+        uses: appleboy/telegram-action@v1.0.1
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}

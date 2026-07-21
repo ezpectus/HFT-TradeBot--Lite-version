@@ -10,11 +10,17 @@ concurrency:
   group: nightly-backtest
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   walk-forward:
     name: Walk-Forward Backtest
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
 

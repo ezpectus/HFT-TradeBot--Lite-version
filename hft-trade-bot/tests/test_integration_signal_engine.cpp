@@ -35,7 +35,7 @@ TEST_CASE("SignalEngineV2: end-to-end signal generation") {
 
     // Run signal engine
     auto candles = agg.get_candles("BTC/USDT");
-    if (candles.size() >= 20) {
+    if (candles.size() >= 20u) {
         auto signal = engine.compute_signal("BTC/USDT", candles, obm);
 
         // Signal should have all components

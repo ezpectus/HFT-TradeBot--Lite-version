@@ -131,11 +131,11 @@ inline std::string rest_depth_endpoint() {
 // OKX uses uppercase instrument IDs like BTC-USDT-SWAP
 inline std::string normalize_symbol(const std::string& symbol) {
     // Convert BTCUSDT → BTC-USDT-SWAP
-    if (symbol.size() < 4) return symbol;
+    if (symbol.size() < 4u) return symbol;
     std::string base, quote;
     // Try to split at common quote currencies
     for (const char* q : {"USDT", "USDC", "BTC", "ETH"}) {
-        size_t qlen = strlen(q);
+        size_t qlen = std::strlen(q);
         if (symbol.size() > qlen && symbol.substr(symbol.size() - qlen) == q) {
             base = symbol.substr(0, symbol.size() - qlen);
             quote = q;

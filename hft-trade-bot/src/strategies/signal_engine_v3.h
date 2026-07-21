@@ -31,6 +31,10 @@
 #include <string_view>
 #include <unordered_map>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 namespace hft {
 
 // StringHash is defined in signal_engine_v2.h — reused here (V2 is always included before V3)
@@ -369,12 +373,13 @@ public:
                 base.leverage = std::max(1u,
                     static_cast<unsigned>(base.leverage * params_.volatile_leverage_mult));
                 break;
+
+            case RegimeState::NUM_STATES:
+                break;
         }
 
         // Append regime info to reason
         // Format: "V2_reason | REGIME:name conf:XX%"
-        char regime_info[32];
-        int pos = 0;
         const char* rname = regime_name(regime);
         // Append to existing reason
         int reason_len = 0;
@@ -488,6 +493,9 @@ public:
                 }
                 base.leverage = std::max(1u,
                     static_cast<unsigned>(base.leverage * params_.volatile_leverage_mult));
+                break;
+
+            case RegimeState::NUM_STATES:
                 break;
         }
 

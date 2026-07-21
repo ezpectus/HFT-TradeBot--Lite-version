@@ -87,7 +87,7 @@ public:
 
     // Inject market data snapshot from SHM (HFT-O16 — bypass WebSocket)
     void inject_snapshot(uint16_t symbol_id, double bid, double ask,
-                         double last, double volume) {
+                         double /*last*/, double volume) {
         if (symbol_id >= id_to_symbol_.size()) return;
         const auto& sym = id_to_symbol_[symbol_id];
         double mid = (bid + ask) / 2.0;
@@ -468,14 +468,14 @@ private:
 
                             auto& hist = candle_history_[candle.symbol];
                             hist.push_back(candle);
-                            if (hist.size() > 200) {
+                            if (hist.size() > 200u) {
                                 hist.erase(hist.begin(), hist.end() - 200);
                             }
                             auto id_it = symbol_to_id_.find(candle.symbol);
                             if (id_it != symbol_to_id_.end()) {
                                 auto& arr_hist = candles_by_id_[id_it->second];
                                 arr_hist.push_back(candle);
-                                if (arr_hist.size() > 200) {
+                                if (arr_hist.size() > 200u) {
                                     arr_hist.erase(arr_hist.begin(), arr_hist.end() - 200);
                                 }
                             }
@@ -562,7 +562,7 @@ private:
             } else if (type == "arbitrage_scan") {
                 // Arbitrage opportunities from exchange simulator
                 if (data.contains("active") && data["active"].is_array()) {
-                    int count = data["active"].size();
+                    auto count = data["active"].size();
                     if (count > 0) {
                         for (const auto& arb : data["active"]) {
                             std::string symbol = arb.value("symbol", "");

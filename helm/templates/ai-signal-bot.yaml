@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-ai-signal-bot
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "hft-trading-system.labels" . | nindent 4 }}
     app.kubernetes.io/component: ai-signal-bot
@@ -134,6 +135,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-ai-signal-bot
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "hft-trading-system.labels" . | nindent 4 }}
 spec:

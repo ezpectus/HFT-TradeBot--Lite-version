@@ -24,6 +24,7 @@
 #include "../data/types.h"
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <chrono>
 #include <unordered_map>
@@ -641,8 +642,7 @@ public:
             cum_var += volumes[i] * diff * diff;
         }
         double vwap_std = cum_v > 0 ? std::sqrt(cum_var / cum_v) : 0.0;
-        double upper_band = vwap + params_.vwap_band_mult * vwap_std;
-        double lower_band = vwap - params_.vwap_band_mult * vwap_std;
+        (void)vwap; (void)vwap_std; // used via band_width below
 
         // VWAP score: above upper band → overbought (-1), below lower → oversold (+1)
         double band_width = params_.vwap_band_mult * vwap_std;

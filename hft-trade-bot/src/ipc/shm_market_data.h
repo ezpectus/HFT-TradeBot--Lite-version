@@ -133,7 +133,7 @@ public:
 
     // Read a market snapshot (lock-free, seq-guarded)
     // Returns false if no data yet or read was inconsistent (write in progress)
-    bool read_snapshot(uint8_t symbol_id, MarketSnapshotMsg& out) {
+    [[nodiscard]] bool read_snapshot(uint8_t symbol_id, MarketSnapshotMsg& out) {
         if (symbol_id >= max_symbols_) return false;
         SnapshotSlot& slot = slots_[symbol_id];
 

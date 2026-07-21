@@ -12,7 +12,7 @@
 ![Math Models](https://img.shields.io/badge/math%20models-75+-a855f7.svg)
 ![Languages](https://img.shields.io/badge/languages-C%2B%2B20%20%7C%20Python%20%7C%20React-00599C.svg)
 ![Security](https://img.shields.io/badge/security-Bandit%20%2B%20CodeQL-red.svg)
-![Optimizations](https://img.shields.io/badge/optimizations-34%20in%2010%20rounds-00C853.svg)
+![Optimizations](https://img.shields.io/badge/optimizations-40%20in%2010%20rounds-00C853.svg)
 
 > **An educational high-frequency trading simulator with C++20 signal engine (V2+V3 HMM), 75+ quant models, 191+ dashboard panels, ONNX ML inference, Rust executor, CUDA acceleration, and shared-memory IPC. Zero real money, zero risk, 100% educational.**
 
@@ -55,7 +55,7 @@ This project is designed as a **hands-on HFT learning platform**. Each component
 
 ### Production Engineering
 - **Docker Compose** with health checks, restart policies, resource limits
-- **CI/CD** — 13 GitHub Actions jobs (lint, test, build, security, Windows)
+- **CI/CD** — 13 GitHub Actions jobs (lint, test, build, security, Windows) with `timeout-minutes`, `fail-fast: false`, `concurrency` groups, minimal `permissions`, and `fetch-depth: 0` for CodeQL
 - **Prometheus + Grafana** — metrics, alerting, dashboards
 - **Helm chart** — 8-service Kubernetes deployment with TLS ingress
 - **Property-based testing** — random market data + invariant checking
@@ -236,13 +236,13 @@ This project is designed as a **hands-on HFT learning platform**. Each component
 
 ### Infrastructure
 
-- **Docker Compose** — 4-service orchestration with health checks and restart policies
+- **Docker Compose** — 4-service orchestration with health checks, restart policies, and `depends_on: condition: service_healthy`
 - **CI/CD** (GitHub Actions) — Python tests, C++ build (gcc-13 + clang-17 + MSVC Windows), JS tests + coverage, bundle analysis, Docker build, dependency audit, Netlify deploy
 - **CI/CD Scripts** — `ci-test.bat` / `ci-test.sh` for local full-pipeline testing (8 stages: Python, C++, Rust, JS)
 - **Benchmark Suite** — `scripts/benchmark_suite.py` measures p50/p95/p99/p999 latency per component, JSON output
 - **Walk-Forward CI** — `scripts/walk_forward_ci.py` nightly Sharpe degradation checker with alert thresholds
 - **Property-based Testing** — C++ random market data generation + invariant checking (SL/TP always closes, PnL consistency)
-- **Docker Hub Images** — `docker-compose.hub.yml` uses pre-built images (no compilation needed)
+- **Docker Hub Images** — `docker-compose.hub.yml` uses pre-built images (no compilation needed). All Dockerfiles include `HEALTHCHECK` and `.dockerignore`.
 - **Cross-platform** — C++ engine compiles on MSVC (Windows), GCC (Linux), and Clang (macOS). Shared memory IPC auto-detects Windows (`CreateFileMappingW`) vs POSIX (`shm_open`). Python SHM uses `mmap` with `tagname` on Windows.
 - **Vitest** — 60+ tests covering indicators, format utils, GARCH, Kalman, HMM, cointegration, K-Means, registry, VirtualList
 - **Prometheus** — metrics endpoint on exchange simulator
@@ -252,10 +252,13 @@ This project is designed as a **hands-on HFT learning platform**. Each component
 - **Config hot-reload** — change parameters without restart
 - **Timestamped logging** — every run creates `logs/<service>_YYYYMMDD_HHMMSS.log`
 - **CSV trade logging** — every fill, SL/TP close, and arbitrage execution logged to `logs/trades_YYYYMMDD_HHMMSS.csv`
-- **Kubernetes Helm chart** — 8-service deployment with ingress, TLS, SHM IPC sidecar
+- **Kubernetes Helm chart** — 8-service deployment with ingress, TLS, SHM IPC sidecar, pinned image tags (`v2.0.0`), and consistent `securityContext`
 - **Distributed tracing** — Jaeger/Zipkin integration
 - **Structured JSON logging** — LOG_FORMAT=json for production (C++ spdlog + Python structlog)
 - **Health checks v2** — liveness/readiness probes, deep checks (WS, SHM, orders)
+- **Dependabot** — automated weekly dependency updates for pip, npm, GitHub Actions, and Docker base images
+- **C++ safety** — `[[nodiscard]]` on all critical `bool`-returning functions, `-Wall -Wextra -Werror`, sign-compare fixes, header self-containment (`<cstdint>`, `<cstring>`, `<cmath>`)
+- **CI hardening** — `timeout-minutes` on all jobs, `fail-fast: false` on all matrix strategies, `concurrency` groups on all workflows, minimal `permissions` (least-privilege)
 - **Secret management** — SOPS for API keys
 - **eBPF monitoring** — low-overhead syscall and network latency tracing
 - **DPDK transport** — kernel bypass networking with socket fallback

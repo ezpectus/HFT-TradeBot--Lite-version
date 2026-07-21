@@ -10,11 +10,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   lint-python:
     name: Lint Python
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
         component: [exchange_simulator, ai-signal-bot]
     steps:
@@ -30,6 +35,7 @@ jobs:
   lint-cpp:
     name: Lint C++
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - run: |
@@ -41,6 +47,7 @@ jobs:
   lint-js:
     name: Lint JavaScript
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,7 +63,9 @@ jobs:
   test-python:
     name: Python Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         component: [exchange_simulator, ai-signal-bot]
     steps:
@@ -90,6 +99,7 @@ jobs:
         with:
           name: coverage-${{ matrix.component }}
           path: ${{ matrix.component }}/coverage.xml
+          retention-days: 14
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -97,11 +107,14 @@ jobs:
           name: logs-${{ matrix.component }}
           path: logs/
           if-no-files-found: ignore
+          retention-days: 7
 
   test-cpp:
     name: C++ Build & Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         compiler: [gcc-14, clang-17]
     steps:
@@ -168,10 +181,12 @@ jobs:
           name: logs-cpp-${{ matrix.compiler }}
           path: logs/
           if-no-files-found: ignore
+          retention-days: 7
 
   test-cpp-msvc:
     name: C++ Build (MSVC Windows)
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Setup vcpkg
@@ -199,6 +214,7 @@ jobs:
   test-js:
     name: JS Tests & Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -222,6 +238,7 @@ jobs:
         with:
           name: js-coverage
           path: web-ui/coverage/
+          retention-days: 14
       - name: Lint
         run: npm run lint
         working-directory: web-ui
@@ -229,6 +246,7 @@ jobs:
   build-js:
     name: Build & Bundle Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [test-js, lint-js]
     steps:
       - uses: actions/checkout@v4
@@ -255,11 +273,14 @@ jobs:
         with:
           name: web-ui-dist
           path: web-ui/dist/
+          retention-days: 14
 
   build-docker:
     name: Docker Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         service: [exchange_simulator, ai-signal-bot, hft-trade-bot, web-ui]
     steps:
@@ -278,6 +299,7 @@ jobs:
   audit-deps:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -301,7 +323,9 @@ jobs:
   security-bandit:
     name: Security Scan (Bandit)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         component: [exchange_simulator, ai-signal-bot]
     steps:
@@ -330,20 +354,25 @@ jobs:
         with:
           name: bandit-${{ matrix.component }}
           path: ${{ matrix.component }}/bandit-report.json
+          retention-days: 30
           if-no-files-found: ignore
 
   security-codeql:
     name: Security Scan (CodeQL)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       security-events: write
       actions: read
       contents: read
     strategy:
+      fail-fast: false
       matrix:
         language: [python, javascript]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
@@ -354,6 +383,7 @@ jobs:
   test-windows:
     name: Test (Windows)
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -387,6 +417,7 @@ jobs:
   test-e2e:
     name: E2E Tests (Playwright)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -411,11 +442,13 @@ jobs:
         with:
           name: e2e-screenshots
           path: web-ui/screenshots/
+          retention-days: 7
           if-no-files-found: ignore
 
   test-summary:
     name: All Tests Passed
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [lint-python, lint-cpp, lint-js, test-python, test-cpp, test-cpp-msvc, test-js, test-windows, test-e2e, build-js, build-docker, audit-deps, security-bandit, security-codeql]
     if: always()
     steps:
@@ -458,6 +491,7 @@ jobs:
   test-count:
     name: Test Count Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [test-python, test-cpp, test-js]
     if: always()
     steps:

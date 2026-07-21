@@ -1,6 +1,9 @@
 node_modules
 dist
 .vite
+coverage
+screenshots
+.netlify
 .env
 .env.local
 *.log

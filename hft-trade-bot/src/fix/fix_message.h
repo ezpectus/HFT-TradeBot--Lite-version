@@ -108,7 +108,7 @@ public:
 
     // Append a tag=value pair (SOH is appended automatically)
     // Returns false if buffer overflow would occur.
-    bool add_tag(int tag, std::string_view value) {
+    [[nodiscard]] bool add_tag(int tag, std::string_view value) {
         // Calculate needed space: tag digits + '=' + value + SOH
         char tag_buf[16];
         int tag_len = int_to_chars(tag, tag_buf);
@@ -125,25 +125,25 @@ public:
         return true;
     }
 
-    bool add_tag(int tag, int value) {
+    [[nodiscard]] bool add_tag(int tag, int value) {
         char tmp[16];
         int n = int_to_chars(value, tmp);
         return add_tag(tag, std::string_view(tmp, n));
     }
 
-    bool add_tag(int tag, uint64_t value) {
+    [[nodiscard]] bool add_tag(int tag, uint64_t value) {
         char tmp[24];
         int n = uint_to_chars(value, tmp);
         return add_tag(tag, std::string_view(tmp, n));
     }
 
-    bool add_tag(int tag, double value, int precision = 8) {
+    [[nodiscard]] bool add_tag(int tag, double value, int precision = 8) {
         char tmp[32];
         int n = std::snprintf(tmp, sizeof(tmp), "%.*f", precision, value);
         return add_tag(tag, std::string_view(tmp, static_cast<size_t>(n)));
     }
 
-    bool add_tag(int tag, char value) {
+    [[nodiscard]] bool add_tag(int tag, char value) {
         char tag_buf[16];
         int tag_len = int_to_chars(tag, tag_buf);
         size_t needed = static_cast<size_t>(tag_len) + 1 + 1 + 1;
@@ -208,7 +208,7 @@ public:
     }
 
     // Parse a raw FIX message buffer
-    bool parse(const char* data, size_t len) {
+    [[nodiscard]] bool parse(const char* data, size_t len) {
         if (len > MAX_SIZE) return false;
         std::memcpy(buf_, data, len);
         len_ = len;

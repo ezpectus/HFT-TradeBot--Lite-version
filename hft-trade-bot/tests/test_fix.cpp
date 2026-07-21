@@ -56,7 +56,7 @@ void test_new_order_single() {
         "HFTBOT", "EXCHANGE", 1, "ORD001", "BTCUSDT", '1', 1.5, '2', 50000.0, '0'
     );
 
-    assert(msg.size() > 0);
+    assert(msg.size() > 0u);
 
     // Parse
     FixDecoder decoder;

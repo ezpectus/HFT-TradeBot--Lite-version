@@ -193,7 +193,7 @@ inline double compute_vwap(const std::vector<Candle>& candles) {
 
 // Price Pressure Model — compares recent buy vs sell pressure
 inline double compute_pressure(const std::vector<Candle>& candles, int lookback = 5) {
-    if (candles.size() < 2) return 0.0;
+    if (candles.size() < 2u) return 0.0;
     int n = std::min(lookback, static_cast<int>(candles.size()) - 1);
     double buy_pressure = 0.0, sell_pressure = 0.0;
     for (int i = static_cast<int>(candles.size()) - n; i < static_cast<int>(candles.size()); ++i) {
@@ -282,14 +282,14 @@ public:
         if (current_price < vwap) short_votes++;
 
         // FFT spectral trend score
-        if (closes.size() >= 64) {
+        if (closes.size() >= 64u) {
             double fft_trend = spectral_trend_score(closes);
             if (fft_trend > 0.2) long_votes++;
             else if (fft_trend < -0.2) short_votes++;
 
             // FFT smoothed price direction
             auto smoothed = fft_lowpass(closes, 0.15);
-            if (smoothed.size() >= 3) {
+            if (smoothed.size() >= 3u) {
                 double slope = smoothed.back() - smoothed[smoothed.size() - 3];
                 if (slope > 0) long_votes++;
                 else if (slope < 0) short_votes++;
@@ -298,7 +298,7 @@ public:
 
         // ATR for SL/TP
         double atr_val = 0.0;
-        if (candles.size() > 14) {
+        if (candles.size() > 14u) {
             double tr_sum = 0.0;
             for (size_t i = candles.size() - 14; i < candles.size(); ++i) {
                 if (i == 0) continue;

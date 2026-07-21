@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <fstream>

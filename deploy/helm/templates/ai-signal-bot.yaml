@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "hft.fullname" . }}-ai-signal-bot
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "hft.labels" . | nindent 4 }}
     app.kubernetes.io/component: ai-signal-bot
@@ -91,6 +92,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "hft.fullname" . }}-ai-signal-bot
+  namespace: {{ .Release.Namespace }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -111,6 +113,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "hft.fullname" . }}-ai-signal-bot
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "hft.labels" . | nindent 4 }}
 spec:

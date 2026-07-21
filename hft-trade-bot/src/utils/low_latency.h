@@ -7,6 +7,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cmath>
 #include <array>
 #include <new>
 #include <string>
@@ -91,7 +92,7 @@ public:
     SPSCQueue() : head_(0), tail_(0) {}
 
     // Producer: enqueue. Returns false if full.
-    bool push(const T& item) noexcept {
+    [[nodiscard]] bool push(const T& item) noexcept {
         const size_t head = head_.load(std::memory_order_relaxed);
         const size_t next = (head + 1) & MASK;
         if (next == tail_.load(std::memory_order_acquire)) return false;
@@ -100,7 +101,7 @@ public:
         return true;
     }
 
-    bool push(T&& item) noexcept {
+    [[nodiscard]] bool push(T&& item) noexcept {
         const size_t head = head_.load(std::memory_order_relaxed);
         const size_t next = (head + 1) & MASK;
         if (next == tail_.load(std::memory_order_acquire)) return false;
@@ -110,7 +111,7 @@ public:
     }
 
     // Consumer: dequeue. Returns false if empty.
-    bool pop(T& out) noexcept {
+    [[nodiscard]] bool pop(T& out) noexcept {
         const size_t tail = tail_.load(std::memory_order_relaxed);
         if (tail == head_.load(std::memory_order_acquire)) return false;
         out = std::move(buffer_[tail]);
@@ -314,7 +315,8 @@ private:
 class ThreadAffinity {
 public:
     // Pin current thread to specific CPU core
-    static bool pin_to_core(int core_id) noexcept {
+    [[nodiscard]] static bool pin_to_core(int core_id) noexcept {
+        if (core_id < 0 || core_id >= 64) return false;
 #if defined(_WIN32)
         DWORD_PTR mask = 1ULL << core_id;
         return SetThreadAffinityMask(GetCurrentThread(), mask) != 0;

@@ -12,6 +12,8 @@ import logging
 import os
 import socket
 import struct
+import sys
+import tempfile
 import time
 from typing import Optional, Callable, Awaitable
 from dataclasses import dataclass, field
@@ -118,7 +120,7 @@ class FixSession:
         self,
         sender_comp_id: str,
         target_comp_id: str,
-        seq_file: str = "/tmp/fix_seq.txt",
+        seq_file: str = os.path.join(tempfile.gettempdir(), "fix_seq.txt"),
         heart_bt_int: int = 30,
     ):
         self.sender_comp_id = sender_comp_id
@@ -157,14 +159,14 @@ class FixSession:
         except Exception as e:
             logger.warning(f"Failed to save FIX seq nums: {e}")
 
-    def _build_msg(self, msg_type: str, extra_fields: list[tuple[int, str]] = []) -> bytes:
+    def _build_msg(self, msg_type: str, extra_fields: list[tuple[int, str]] | None = None) -> bytes:
         fields = [
             (35, msg_type),
             (49, self.sender_comp_id),
             (56, self.target_comp_id),
             (34, str(self.outgoing_seq)),
             (52, time.strftime("%Y%m%d-%H:%M:%S.000000", time.gmtime())),
-        ] + extra_fields
+        ] + (extra_fields or [])
         msg = FixMessage.build(fields)
         self.outgoing_seq += 1
         self._save_seq_nums()

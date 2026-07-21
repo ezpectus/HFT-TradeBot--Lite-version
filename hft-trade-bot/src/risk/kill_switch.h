@@ -58,7 +58,7 @@ public:
     void set_notify_callback(NotifyCallback cb) { notify_cb_ = std::move(cb); }
 
     // Initialize SHM for notifying Python
-    bool init_shm() {
+    [[nodiscard]] bool init_shm() {
         try {
             shm_ = std::make_unique<ShmRingBuffer<ipc::KillSwitchMsg>>(
                 shm_name_, 64, true);

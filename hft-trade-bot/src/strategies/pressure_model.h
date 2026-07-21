@@ -179,7 +179,7 @@ private:
     }
 
     // ── Toxicity detection — large aggressive orders → toxic score [0, 1] ──
-    double compute_toxicity(const OrderBook& ob, const TradeTick* trades, size_t n) const noexcept {
+    double compute_toxicity(const OrderBook& /*ob*/, const TradeTick* trades, size_t n) const noexcept {
         if (!trades || n == 0) return 0.0;
 
         // Compute median trade size

@@ -45,7 +45,7 @@ exchangeSimulator:
   enabled: true
   image:
     repository: hft-exchange_simulator
-    tag: latest
+    tag: v2.0.0
   ports:
     ws: 8765
     metrics: 8775
@@ -62,7 +62,7 @@ aiSignalBot:
   enabled: true
   image:
     repository: hft-ai-signal-bot
-    tag: latest
+    tag: v2.0.0
   ports:
     ws: 8766
     metrics: 9090
@@ -82,7 +82,7 @@ hftTradeBot:
   enabled: true
   image:
     repository: hft-trade-bot
-    tag: latest
+    tag: v2.0.0
   configPath: config/config.prod.yaml
   resources:
     requests:
@@ -97,7 +97,7 @@ webUi:
   enabled: true
   image:
     repository: hft-web-ui
-    tag: latest
+    tag: v2.0.0
   port: 3000
   # These are build-time Vite args (inlined into JS bundle at Docker build time).
   # They are NOT runtime env vars — set them as Docker build ARGs, not K8s env.

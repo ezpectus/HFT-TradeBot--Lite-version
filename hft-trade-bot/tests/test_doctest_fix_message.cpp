@@ -17,37 +17,37 @@ TEST_CASE("FixMessage: default constructor has zero length") {
 TEST_CASE("FixMessage: add_tag string_view") {
     FixMessage msg;
     msg.add_tag(35, std::string_view("A"));
-    CHECK(msg.size() > 0);
+    CHECK(msg.size() > 0u);
 }
 
 TEST_CASE("FixMessage: add_tag char") {
     FixMessage msg;
     msg.add_tag(35, 'A');
-    CHECK(msg.size() > 0);
+    CHECK(msg.size() > 0u);
 }
 
 TEST_CASE("FixMessage: add_tag int") {
     FixMessage msg;
     msg.add_tag(34, 42);
-    CHECK(msg.size() > 0);
+    CHECK(msg.size() > 0u);
 }
 
 TEST_CASE("FixMessage: add_tag uint64") {
     FixMessage msg;
     msg.add_tag(34, static_cast<uint64_t>(123456));
-    CHECK(msg.size() > 0);
+    CHECK(msg.size() > 0u);
 }
 
 TEST_CASE("FixMessage: add_tag double") {
     FixMessage msg;
     msg.add_tag(44, 50000.5);
-    CHECK(msg.size() > 0);
+    CHECK(msg.size() > 0u);
 }
 
 TEST_CASE("FixMessage: clear resets length") {
     FixMessage msg;
     msg.add_tag(35, 'A');
-    CHECK(msg.size() > 0);
+    CHECK(msg.size() > 0u);
     msg.clear();
     CHECK(msg.size() == 0);
 }

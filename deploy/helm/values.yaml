@@ -4,7 +4,7 @@
 global:
   imageRegistry: ghcr.io/ezpectus/hft-trading-simulator
   imagePullPolicy: IfNotPresent
-  imageTag: latest
+  imageTag: v2.0.0
   imagePullSecrets: []
 
 # ── Exchange Simulator ──

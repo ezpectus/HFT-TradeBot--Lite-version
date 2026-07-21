@@ -177,6 +177,15 @@ int main(int argc, char* argv[]) {
         config.min_rr_ratio,
         config.max_position_size_pct,
         config.max_open_positions,
+        {},  // max_position_qty (default)
+        {},  // max_total_exposure (default)
+        {},  // daily_loss_limit (default)
+        {},  // max_drawdown_pct (default)
+        {},  // max_orders_per_second (default)
+        {},  // min_margin_ratio (default)
+        {},  // max_leverage (default)
+        {},  // blacklisted_symbols (default)
+        {},  // per_symbol_max_qty (default)
     });
     PositionManager pos_mgr;
     OrderExecutor executor(config.ws_url, config.default_exchange);
@@ -703,7 +712,6 @@ int main(int argc, char* argv[]) {
                     } else {
                         // For limit orders, set price in order book context
                         // The existing executor handles LIMIT vs MARKET
-                        OrderType type = OrderType::LIMIT;
                         // Create a modified order book with the limit price
                         OrderBook ob_modified = ob;
                         if (limit_price > 0) {
@@ -736,7 +744,7 @@ int main(int argc, char* argv[]) {
 
             for (const auto& symbol : config.symbols) {
                 auto candles = receiver.get_candles(symbol, 100);
-                if (candles.size() < 30) continue;
+                if (candles.size() < 30u) continue;
 
                 auto ob = receiver.get_order_book(symbol);
                 if (ob.bids.empty() || ob.asks.empty()) {

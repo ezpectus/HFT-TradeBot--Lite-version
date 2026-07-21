@@ -287,5 +287,5 @@ TEST_CASE("RoutingDecision set_exchange truncates safely") {
 TEST_CASE("RoutingDecision set_reason truncates safely") {
     RoutingDecision d;
     d.set_reason("a very long reason that exceeds the 32 byte buffer limit");
-    CHECK(std::string(d.reason).size() <= 31);
+    CHECK(std::string(d.reason).size() <= 31u);
 }

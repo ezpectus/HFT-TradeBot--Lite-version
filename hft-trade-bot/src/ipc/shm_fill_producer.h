@@ -20,7 +20,7 @@ public:
     ~ShmFillProducer() { close(); }
 
     // Create the SHM segment (C++ creates, Python opens)
-    bool init() {
+    [[nodiscard]] bool init() {
         try {
             buffer_ = std::make_unique<ShmRingBuffer<FillMsg>>(
                 shm_name_, capacity_, true);
@@ -31,7 +31,7 @@ public:
     }
 
     // Push a fill (non-blocking). Returns false if buffer is full.
-    bool push_fill(const FillMsg& fill) {
+    [[nodiscard]] bool push_fill(const FillMsg& fill) {
         if (!buffer_) return false;
         return buffer_->try_push(fill);
     }

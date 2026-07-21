@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -27,7 +27,7 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_entry = {
-            "ts": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
+            "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds") + "Z",
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),

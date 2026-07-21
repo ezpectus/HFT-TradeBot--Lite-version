@@ -1,0 +1,78 @@
+version: 2
+updates:
+  # Python dependencies (exchange_simulator)
+  - package-ecosystem: pip
+    directory: "/exchange_simulator"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  # Python dependencies (ai-signal-bot)
+  - package-ecosystem: pip
+    directory: "/ai-signal-bot"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+
+  # npm dependencies (web-ui)
+  - package-ecosystem: npm
+    directory: "/web-ui"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+
+  # Docker base images
+  - package-ecosystem: docker
+    directory: "/exchange_simulator"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: "/ai-signal-bot"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: "/hft-trade-bot"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: "/web-ui"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker

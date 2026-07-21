@@ -56,13 +56,13 @@ public:
         return (b + a) / 2.0;
     }
 
-    double bid_depth(const std::string& symbol, int levels) const override {
+    double bid_depth(const std::string& symbol, int /*levels*/) const override {
         std::lock_guard<Spinlock> lk(depth_lock_);
         auto it = bid_depth_.find(symbol);
         return it != bid_depth_.end() ? it->second : 0.0;
     }
 
-    double ask_depth(const std::string& symbol, int levels) const override {
+    double ask_depth(const std::string& symbol, int /*levels*/) const override {
         std::lock_guard<Spinlock> lk(depth_lock_);
         auto it = ask_depth_.find(symbol);
         return it != ask_depth_.end() ? it->second : 0.0;
@@ -135,7 +135,7 @@ public:
         return config_.ws_url + "/ws/" + symbol_lower(symbol) + "@bookTicker";
     }
 
-    std::string depth_stream(const std::string& symbol, int levels = 20) const {
+    std::string depth_stream(const std::string& symbol, int /*levels*/ = 20) const {
         return config_.ws_url + "/ws/" + symbol_lower(symbol) +
                "@depth20@100ms";
     }

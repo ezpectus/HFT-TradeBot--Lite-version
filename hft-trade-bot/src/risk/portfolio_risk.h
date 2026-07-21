@@ -202,7 +202,7 @@ public:
         }
 
         // Average correlation adjustment
-        if (positions.size() > 1 && !corr_matrix.empty()) {
+        if (positions.size() > 1u && !corr_matrix.empty()) {
             double avg_corr = 0.0;
             size_t count = 0;
             for (size_t i = 0; i < positions.size() && i < corr_matrix.size(); ++i) {

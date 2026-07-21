@@ -51,13 +51,13 @@ public:
         return (best_bid(symbol) + best_ask(symbol)) / 2.0;
     }
 
-    double bid_depth(const std::string& symbol, int levels) const override {
+    double bid_depth(const std::string& symbol, int /*levels*/) const override {
         std::lock_guard<Spinlock> lk(depth_lock_);
         auto it = bid_depth_.find(symbol);
         return it != bid_depth_.end() ? it->second : 0.0;
     }
 
-    double ask_depth(const std::string& symbol, int levels) const override {
+    double ask_depth(const std::string& symbol, int /*levels*/) const override {
         std::lock_guard<Spinlock> lk(depth_lock_);
         auto it = ask_depth_.find(symbol);
         return it != ask_depth_.end() ? it->second : 0.0;
@@ -76,7 +76,7 @@ public:
     // OKX uses instrument IDs like "BTC-USDT-SWAP"
     static std::string to_inst_id(const std::string& symbol) {
         // Convert "BTCUSDT" → "BTC-USDT-SWAP"
-        if (symbol.size() >= 4 && symbol.substr(symbol.size()-4) == "USDT") {
+        if (symbol.size() >= 4u && symbol.substr(symbol.size()-4) == "USDT") {
             std::string base = symbol.substr(0, symbol.size()-4);
             return base + "-USDT-SWAP";
         }

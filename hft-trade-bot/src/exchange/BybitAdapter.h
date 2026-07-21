@@ -50,13 +50,13 @@ public:
         return (best_bid(symbol) + best_ask(symbol)) / 2.0;
     }
 
-    double bid_depth(const std::string& symbol, int levels) const override {
+    double bid_depth(const std::string& symbol, int /*levels*/) const override {
         std::lock_guard<Spinlock> lk(depth_lock_);
         auto it = bid_depth_.find(symbol);
         return it != bid_depth_.end() ? it->second : 0.0;
     }
 
-    double ask_depth(const std::string& symbol, int levels) const override {
+    double ask_depth(const std::string& symbol, int /*levels*/) const override {
         std::lock_guard<Spinlock> lk(depth_lock_);
         auto it = ask_depth_.find(symbol);
         return it != ask_depth_.end() ? it->second : 0.0;

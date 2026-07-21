@@ -8,6 +8,7 @@
 #include <string_view>
 #include <array>
 #include <algorithm>
+#include <cstring>
 
 namespace hft::fix {
 
@@ -16,7 +17,7 @@ public:
     static constexpr size_t MAX_FIELDS = 64;
 
     // Parse a raw FIX message buffer (zero-copy — views point into buffer)
-    bool decode(const char* data, size_t len) {
+    [[nodiscard]] bool decode(const char* data, size_t len) {
         field_count_ = 0;
         data_ = data;
         len_ = len;

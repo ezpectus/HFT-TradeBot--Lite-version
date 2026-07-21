@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libboost-system1.74.0 \
     libboost-random1.74.0 \
     libssl3 \
-    libspdlog1.11 \
+    libspdlog1.10 \
     libfmt9 \
     libyaml-cpp0.7 \
     wget ca-certificates \

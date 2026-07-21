@@ -59,11 +59,16 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        // Object form — the function form is deprecated in Rollup 4 / Vite 8.
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'charts-vendor': ['lightweight-charts'],
-          'icons-vendor': ['lucide-react'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'react-vendor'
+          }
+          if (id.includes('node_modules/lightweight-charts')) {
+            return 'charts-vendor'
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'icons-vendor'
+          }
         },
       },
     },

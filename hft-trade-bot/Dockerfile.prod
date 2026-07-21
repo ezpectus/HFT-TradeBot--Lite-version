@@ -29,7 +29,7 @@ WORKDIR /app
 
 # Pin runtime library versions to match bookworm's -dev packages from builder stage
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libboost-system1.74.0 libboost-random1.74.0 libssl3 libspdlog1.11 \
+    libboost-system1.74.0 libboost-random1.74.0 libssl3 libspdlog1.10 \
     libyaml-cpp0.7 libfmt9 wget ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appuser && useradd -r -g appuser appuser

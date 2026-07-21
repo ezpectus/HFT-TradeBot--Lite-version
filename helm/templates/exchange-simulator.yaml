@@ -18,10 +18,21 @@ spec:
         {{- include "hft-trading-system.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: exchange_simulator
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: exchange_simulator
           image: "{{ .Values.exchangeSimulator.image.repository }}:{{ .Values.exchangeSimulator.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command: ["python", "-m", "exchange_simulator", "--no-visualizer"]
           env:
             - name: LOG_FORMAT

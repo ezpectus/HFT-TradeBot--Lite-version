@@ -19,11 +19,22 @@ spec:
         app.kubernetes.io/component: ai-signal-bot
     spec:
       shareProcessNamespace: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: ai-signal-bot
           image: "{{ .Values.aiSignalBot.image.repository }}:{{ .Values.aiSignalBot.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          command: ["python", "run.py", "--dashboard", "--metrics"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command: ["python", "run.py", "--metrics"]
           env:
             - name: LOG_FORMAT
               value: {{ .Values.global.logFormat | quote }}
@@ -31,8 +42,16 @@ spec:
               value: {{ .Values.global.logLevel | quote }}
             - name: EXCHANGE_MODE
               value: {{ .Values.aiSignalBot.env.exchangeMode | quote }}
+            {{- if .Values.aiSignalBot.env.openaiApiKey }}
             - name: OPENAI_API_KEY
               value: {{ .Values.aiSignalBot.env.openaiApiKey | quote }}
+            {{- else }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-api-keys
+                  key: openai-api-key
+            {{- end }}
             - name: POSTGRES_DSN
               valueFrom:
                 secretKeyRef:
@@ -68,6 +87,12 @@ spec:
         - name: hft-trade-bot
           image: "{{ .Values.hftTradeBot.image.repository }}:{{ .Values.hftTradeBot.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command: ["/app/hft_trade_bot", {{ .Values.hftTradeBot.configPath | quote }}]
           env:
             - name: LOG_FORMAT
@@ -118,6 +143,8 @@ spec:
       name: ws
     - port: {{ .Values.aiSignalBot.ports.metrics }}
       name: metrics
+    - port: 9091
+      name: hft-health
   selector:
     {{- include "hft-trading-system.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: ai-signal-bot

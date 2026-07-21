@@ -19,15 +19,30 @@ spec:
         {{- include "hft-trading-system.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: grafana
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: grafana
           image: {{ .Values.grafana.image }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: GF_SECURITY_ADMIN_USER
               value: {{ .Values.grafana.adminUser | quote }}
+            {{- if .Values.grafana.adminPassword }}
             - name: GF_SECURITY_ADMIN_PASSWORD
               value: {{ .Values.grafana.adminPassword | quote }}
+            {{- else }}
+            {{- fail "grafana.adminPassword must be set (e.g. --set grafana.adminPassword=...)" -}}
+            {{- end }}
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
           ports:
@@ -42,6 +57,12 @@ spec:
               port: 3000
             initialDelaySeconds: 15
             periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             {{- toYaml .Values.grafana.resources | nindent 12 }}
   volumeClaimTemplates:

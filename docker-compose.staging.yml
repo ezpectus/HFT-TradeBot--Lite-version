@@ -24,7 +24,7 @@ services:
       - "18765:8765"
       - "18775:8775"
     volumes:
-      - ./exchange_simulator/config.yaml:/app/config.yaml
+      - ./exchange_simulator/config.yaml:/app/config.yaml:ro
       - staging-sim-data:/app/data
       - staging-sim-logs:/app/logs
     command: python -m exchange_simulator --no-visualizer
@@ -58,13 +58,12 @@ services:
         condition: service_healthy
     ports:
       - "18766:8766"
-      - "18080:8080"
       - "19090:9090"
     volumes:
-      - ./ai-signal-bot/config/settings.yaml:/app/config/settings.yaml
+      - ./ai-signal-bot/config/settings.yaml:/app/config/settings.yaml:ro
       - staging-ai-data:/app/data
       - staging-ai-logs:/app/logs
-    command: python run.py --dashboard --metrics
+    command: python run.py --metrics
     environment:
       - LOG_FORMAT=json
     restart: on-failure:5
@@ -96,7 +95,7 @@ services:
       ai-signal-bot:
         condition: service_healthy
     volumes:
-      - ./hft-trade-bot/config:/app/config
+      - ./hft-trade-bot/config:/app/config:ro
       - staging-hft-logs:/app/logs
     ports:
       - "19092:9091"
@@ -113,7 +112,7 @@ services:
           cpus: '1.0'
           memory: 256M
     healthcheck:
-      test: ["CMD", "test", "-f", "/proc/1/cmdline"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9091/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -155,14 +154,20 @@ services:
       - staging-net
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.0.0
     container_name: staging-prometheus
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - staging-prom-data:/prometheus
     ports:
       - "19091:9090"
     restart: on-failure:3
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -172,10 +177,11 @@ services:
       - staging-net
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     container_name: staging-grafana
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=staging
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -184,6 +190,12 @@ services:
     ports:
       - "13001:3000"
     restart: on-failure:3
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:

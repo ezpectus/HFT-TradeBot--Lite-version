@@ -24,16 +24,27 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: exchange-simulator
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.exchangeSimulator.image.repository }}:{{ .Values.exchangeSimulator.image.tag | default .Values.global.imageTag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: ws
-              containerPort: 8765
+              containerPort: {{ .Values.exchangeSimulator.service.wsPort }}
               protocol: TCP
             - name: metrics
-              containerPort: 8775
+              containerPort: {{ .Values.exchangeSimulator.service.metricsPort }}
               protocol: TCP
           env:
             {{- range $k, $v := .Values.exchangeSimulator.env }}
@@ -43,15 +54,13 @@ spec:
           resources:
             {{- toYaml .Values.exchangeSimulator.resources | nindent 12 }}
           livenessProbe:
-            httpGet:
-              path: /health
-              port: metrics
+            tcpSocket:
+              port: ws
             initialDelaySeconds: 10
             periodSeconds: 30
           readinessProbe:
-            httpGet:
-              path: /health
-              port: metrics
+            tcpSocket:
+              port: ws
             initialDelaySeconds: 5
             periodSeconds: 10
 ---

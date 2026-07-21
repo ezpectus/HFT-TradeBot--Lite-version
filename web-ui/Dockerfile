@@ -10,16 +10,24 @@ ENV VITE_WS_EXCHANGE=${VITE_WS_EXCHANGE}
 ENV VITE_WS_SIGNALS=${VITE_WS_SIGNALS}
 
 COPY package*.json ./
-RUN npm ci --production=false || npm install --silent
+RUN npm ci
 
 COPY . .
 RUN npm run build
 
-# Production stage — serve static files with nginx
-FROM nginx:alpine
+# Production stage — serve static files with nginx (non-root)
+FROM nginx:1.27-alpine
+
+# Run nginx as the built-in `nginx` user (UID 101) for consistency with
+# other services' prod Dockerfiles (appuser). Port 3000 is non-privileged.
+RUN chown -R nginx:nginx /var/cache/nginx /var/run /usr/share/nginx/html /etc/nginx/conf.d
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+RUN chown -R nginx:nginx /usr/share/nginx/html
+
+USER nginx
 
 EXPOSE 3000
 

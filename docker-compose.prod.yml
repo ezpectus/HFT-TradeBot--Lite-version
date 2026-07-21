@@ -58,7 +58,7 @@ services:
 
   # ── Prometheus — metrics scraping ──
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.0.0
     container_name: trading-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -74,7 +74,6 @@ services:
     restart: unless-stopped
     networks:
       - monitoring
-      - frontend
     deploy:
       resources:
         limits:
@@ -83,13 +82,14 @@ services:
 
   # ── Grafana — dashboards and visualization ──
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     container_name: trading-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set in .env.prod}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/trading-overview.json
+      GF_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env.prod}
     volumes:
       - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
@@ -135,13 +135,8 @@ services:
     networks:
       - backend
       - frontend
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1'
-
-  # ── AI Signal Bot (Python) — strategy signals + real market data ──
+      - monitoring
+    deploy: (Python) — strategy signals + real market data ──
   ai-signal-bot:
     build:
       context: ./ai-signal-bot
@@ -156,7 +151,7 @@ services:
         condition: service_healthy
     ports:
       - "8766:8766"
-      - "9091:9090"  # Prometheus metrics
+      - "9092:9090"  # Prometheus metrics
     env_file:
       - .env.prod
     environment:
@@ -168,8 +163,9 @@ services:
       - ./ai-signal-bot/config/settings.yaml:/app/config/settings.yaml:ro
       - ai-data:/app/data
       - ai-logs:/app/logs
-      - /dev/shm:/dev/shm  # SHM IPC with C++ bot
-    command: python run.py --dashboard --metrics
+    # SHM IPC with C++ bot: shareable IPC namespace so hft-trade-bot can join it
+    ipc: shareable
+    command: python run.py --metrics
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8766), timeout=5)"]
@@ -205,7 +201,8 @@ services:
     volumes:
       - ./hft-trade-bot/config:/app/config:ro
       - hft-logs:/app/logs
-      - /dev/shm:/dev/shm  # SHM IPC with Python bot
+    # SHM IPC: join the ai-signal-bot container's IPC namespace (shared memory)
+    ipc: "container:trading-ai-signal-bot"
     command: /app/hft_trade_bot config/config.prod.yaml
     restart: unless-stopped
     healthcheck:
@@ -216,6 +213,7 @@ services:
       start_period: 10s
     networks:
       - backend
+      - monitoring
     deploy:
       resources:
         limits:
@@ -228,8 +226,10 @@ services:
       context: ./web-ui
       dockerfile: Dockerfile.prod
       args:
-        - VITE_WS_EXCHANGE=ws://localhost:8765
-        - VITE_WS_SIGNALS=ws://localhost:8766
+        # Browser-facing WebSocket endpoints. Defaults to localhost for dev;
+        # override via .env.prod (VITE_WS_EXCHANGE/VITE_WS_SIGNALS) for production.
+        - VITE_WS_EXCHANGE=${VITE_WS_EXCHANGE:-ws://localhost:8765}
+        - VITE_WS_SIGNALS=${VITE_WS_SIGNALS:-ws://localhost:8766}
     container_name: trading-web-ui
     depends_on:
       ai-signal-bot:

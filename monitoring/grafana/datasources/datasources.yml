@@ -15,7 +15,7 @@ datasources:
     database: trading
     user: trader
     secureJsonData:
-      password: trader_secure_2024
+      password: ${GF_POSTGRES_PASSWORD}
     jsonData:
       sslmode: disable
       postgresVersion: 1600

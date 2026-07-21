@@ -18,26 +18,36 @@ spec:
         {{- include "hft.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: grafana
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: grafana
           image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: {{ .Values.grafana.service.port }}
               protocol: TCP
           env:
+            {{- if .Values.grafana.adminPassword }}
             - name: GF_SECURITY_ADMIN_PASSWORD
               value: {{ .Values.grafana.adminPassword | quote }}
+            {{- else }}
+            {{- fail "grafana.adminPassword must be set (e.g. --set grafana.adminPassword=...)" -}}
+            {{- end }}
             - name: GF_INSTALL_PLUGINS
               value: ""
           resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 256Mi
+            {{- toYaml .Values.grafana.resources | nindent 12 }}
           volumeMounts:
             - name: data
               mountPath: /var/lib/grafana
@@ -64,7 +74,9 @@ metadata:
   name: {{ include "hft.fullname" . }}-grafana
 spec:
   accessModes: ["ReadWriteOnce"]
-  storageClassName: standard
+  {{- if .Values.grafana.persistence.storageClass }}
+  storageClassName: {{ .Values.grafana.persistence.storageClass | quote }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.grafana.persistence.size }}

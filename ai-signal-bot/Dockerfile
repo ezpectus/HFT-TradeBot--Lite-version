@@ -34,8 +34,9 @@ USER appuser
 # Ensure user packages are on PATH
 ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
-EXPOSE 8766 8080 9090
+EXPOSE 8766 9090
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
     CMD python -c "import socket; socket.create_connection(('localhost', 8766), timeout=5)" || exit 1

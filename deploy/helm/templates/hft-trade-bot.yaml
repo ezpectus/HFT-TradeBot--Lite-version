@@ -19,14 +19,21 @@ spec:
         {{- include "hft.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: hft-trade-bot
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: hft-trade-bot
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.hftTradeBot.image.repository }}:{{ .Values.hftTradeBot.image.tag | default .Values.global.imageTag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: metrics
               containerPort: {{ .Values.hftTradeBot.service.metricsPort }}
@@ -42,6 +49,11 @@ spec:
               value: {{ include "hft.fullname" . }}-redis
           resources:
             {{- toYaml .Values.hftTradeBot.resources | nindent 12 }}
+          volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            - name: logs
+              mountPath: /app/logs
           livenessProbe:
             httpGet:
               path: /health
@@ -54,14 +66,13 @@ spec:
               port: metrics
             initialDelaySeconds: 5
             periodSeconds: 10
-          volumeMounts:
-            - name: shm
-              mountPath: /dev/shm
       volumes:
         - name: shm
           emptyDir:
             medium: Memory
             sizeLimit: 256Mi
+        - name: logs
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

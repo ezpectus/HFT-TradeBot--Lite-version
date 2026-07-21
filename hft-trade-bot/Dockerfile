@@ -1,5 +1,7 @@
 # ── Build stage: compile with full toolchain ──
-FROM gcc:14 AS builder
+# Builder and runtime use the SAME Debian release (bookworm) to avoid ABI
+# mismatches between libfmt/spdlog/yaml-cpp/boost versions across stages.
+FROM gcc:14-bookworm AS builder
 
 WORKDIR /app
 
@@ -28,22 +30,33 @@ RUN sed -i 's/endpoint<connection,config>/endpoint/g' /usr/include/websocketpp/e
 RUN mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
 
 # ── Runtime stage: slim image with only runtime libs ──
-FROM debian:trixie-slim
+# Same Debian release as builder (bookworm) to keep ABI stable.
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# Install runtime libraries only (no -dev packages)
+# Install runtime libraries only — versions matched to bookworm's -dev packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libboost-system1.83.0 \
-    libboost-random1.83.0 \
+    libboost-system1.74.0 \
+    libboost-random1.74.0 \
     libssl3 \
-    libspdlog1.15 \
-    libfmt10 \
-    libyaml-cpp0.8 \
+    libspdlog1.11 \
+    libfmt9 \
+    libyaml-cpp0.7 \
+    wget ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy built binary and config from builder
 COPY --from=builder /app/build/hft_trade_bot /app/build/hft_trade_bot
 COPY --from=builder /app/config /app/config
+
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 9091
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+    CMD wget -q --spider http://localhost:9091/health || exit 1
 
 CMD ["./build/hft_trade_bot", "config/config.yaml"]

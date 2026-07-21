@@ -19,13 +19,24 @@ spec:
         {{- include "hft.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: timescaledb
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: timescaledb
           image: "{{ .Values.timescaledb.image.repository }}:{{ .Values.timescaledb.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - name: postgres
-              containerPort: 5432
+              containerPort: {{ .Values.timescaledb.service.port }}
               protocol: TCP
           env:
             - name: POSTGRES_USER
@@ -58,7 +69,9 @@ spec:
       spec:
         accessModes:
           {{- toYaml .Values.timescaledb.persistence.accessModes | nindent 10 }}
-        storageClassName: {{ .Values.timescaledb.persistence.storageClass }}
+        {{- if .Values.timescaledb.persistence.storageClass }}
+        storageClassName: {{ .Values.timescaledb.persistence.storageClass | quote }}
+        {{- end }}
         resources:
           requests:
             storage: {{ .Values.timescaledb.persistence.size }}

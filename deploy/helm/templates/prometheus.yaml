@@ -18,17 +18,28 @@ spec:
         {{- include "hft.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: prometheus
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: prometheus
           image: "{{ .Values.prometheus.image.repository }}:{{ .Values.prometheus.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.path=/prometheus"
             - "--web.enable-lifecycle"
           ports:
             - name: web
-              containerPort: 9090
+              containerPort: {{ .Values.prometheus.service.port }}
               protocol: TCP
           resources:
             {{- toYaml .Values.prometheus.resources | nindent 12 }}
@@ -37,6 +48,18 @@ spec:
               mountPath: /etc/prometheus
             - name: data
               mountPath: /prometheus
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: web
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: web
+            initialDelaySeconds: 10
+            periodSeconds: 10
       volumes:
         - name: config
           configMap:
@@ -92,7 +115,9 @@ metadata:
   name: {{ include "hft.fullname" . }}-prometheus
 spec:
   accessModes: ["ReadWriteOnce"]
-  storageClassName: standard
+  {{- if .Values.prometheus.persistence.storageClass }}
+  storageClassName: {{ .Values.prometheus.persistence.storageClass | quote }}
+  {{- end }}
   resources:
     requests:
       storage: {{ .Values.prometheus.persistence.size }}

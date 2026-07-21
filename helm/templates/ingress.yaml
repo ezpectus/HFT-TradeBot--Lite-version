@@ -7,6 +7,12 @@ metadata:
     {{- include "hft-trading-system.labels" . | nindent 4 }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
   rules:
     - host: {{ .Values.ingress.hostname }}
       http:

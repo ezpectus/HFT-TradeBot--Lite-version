@@ -8,7 +8,7 @@
 #   - SHM IPC for Python↔C++ communication
 #   - FIX 4.4 protocol support (optional)
 #   - Kill switch with auto-cancel and auto-close
-#   - Prometheus metrics on :9090
+#   - Prometheus metrics on :9091
 #
 # API keys are read from environment variables (${VAR} syntax).
 # Never hardcode API keys in this file.

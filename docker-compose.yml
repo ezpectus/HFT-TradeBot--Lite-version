@@ -28,7 +28,7 @@ services:
       - "8765:8765"
       - "8775:8775"
     volumes:
-      - ./exchange_simulator/config.yaml:/app/config.yaml
+      - ./exchange_simulator/config.yaml:/app/config.yaml:ro
       - sim-data:/app/data
       - sim-logs:/app/logs
     command: python -m exchange_simulator --no-visualizer
@@ -52,13 +52,12 @@ services:
         condition: service_healthy
     ports:
       - "8766:8766"
-      - "8080:8080"
       - "9090:9090"
     volumes:
-      - ./ai-signal-bot/config/settings.yaml:/app/config/settings.yaml
+      - ./ai-signal-bot/config/settings.yaml:/app/config/settings.yaml:ro
       - ai-data:/app/data
       - ai-logs:/app/logs
-    command: python run.py --dashboard --metrics
+    command: python run.py --metrics
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8766), timeout=5)"]
@@ -80,14 +79,14 @@ services:
       ai-signal-bot:
         condition: service_healthy
     volumes:
-      - ./hft-trade-bot/config:/app/config
+      - ./hft-trade-bot/config:/app/config:ro
       - hft-logs:/app/logs
     ports:
       - "9091:9091"
     command: ./build/hft_trade_bot config/config.yaml
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "test", "-f", "/proc/1/cmdline"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9091/health"]
       interval: 30s
       timeout: 10s
       retries: 3

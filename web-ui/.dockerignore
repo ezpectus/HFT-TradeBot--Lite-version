@@ -14,5 +14,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 Dockerfile
+Dockerfile.prod
 .dockerignore
 .netlify/

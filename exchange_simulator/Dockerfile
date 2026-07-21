@@ -22,6 +22,7 @@ USER appuser
 # Ensure user packages are on PATH
 ENV PATH=/home/appuser/.local/bin:$PATH
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8765 8775
 

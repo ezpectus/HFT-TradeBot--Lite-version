@@ -18,10 +18,21 @@ spec:
         {{- include "hft-trading-system.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web-ui
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
       containers:
         - name: web-ui
           image: "{{ .Values.webUi.image.repository }}:{{ .Values.webUi.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: {{ .Values.webUi.port }}
               name: http

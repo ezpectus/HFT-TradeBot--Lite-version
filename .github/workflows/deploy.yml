@@ -16,8 +16,8 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: web-ui/package.json
-      - run: npm ci || npm install
+          cache-dependency-path: web-ui/package-lock.json
+      - run: npm ci
         working-directory: web-ui
       - name: Build
         run: npm run build
@@ -76,6 +76,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # web-ui needs VITE_WS_* build args (inlined into the bundle at build
+          # time). Other services ignore these args.
+          build-args: |
+            VITE_WS_EXCHANGE=${{ vars.VITE_WS_EXCHANGE || 'ws://localhost:8765' }}
+            VITE_WS_SIGNALS=${{ vars.VITE_WS_SIGNALS || 'ws://localhost:8766' }}
 
   deploy:
     name: Deploy to Server
@@ -86,7 +91,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Copy docker-compose to server
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v0.1.13
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -95,7 +100,7 @@ jobs:
           target: "/opt/hft/"
 
       - name: Pull and restart services
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -117,10 +122,11 @@ jobs:
           # Exchange simulator is WebSocket on :8765 — check port connectivity
           echo "Checking ${{ secrets.DEPLOY_HOST }}:8765 (WebSocket)..."
           nc -z -w5 ${{ secrets.DEPLOY_HOST }} 8765 && echo "  OK" || echo "  WARNING: port 8765 not reachable"
-          # AI Signal Bot health endpoint on :8080
+          # AI Signal Bot WebSocket on :8766 and Web UI on :3000
           for endpoint in \
-            "http://${{ secrets.DEPLOY_HOST }}:8080/health" \
-            "http://${{ secrets.DEPLOY_HOST }}:3000/"; do
+            "http://${{ secrets.DEPLOY_HOST }}:3000/" \
+            "http://${{ secrets.DEPLOY_HOST }}:9091/health" \
+            "http://${{ secrets.DEPLOY_HOST }}:9092/metrics"; do
             echo "Checking $endpoint..."
             status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$endpoint" || echo "FAIL")
             echo "  Status: $status"
@@ -141,7 +147,7 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         with:
-          args: "Deployment ${{ github.ref_name }}: ${{ job.status == 'success' && 'SUCCESS' || 'FAILED' }}"
+          args: "Deployment ${{ github.ref_name }}: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && 'SUCCESS' || 'FAILED' }}"
 
       - name: Telegram notification
         if: ${{ vars.TELEGRAM_BOT_TOKEN != '' }}
@@ -151,5 +157,5 @@ jobs:
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
             HFT Trading System deployment ${{ github.ref_name }}
-            Status: ${{ job.status == 'success' && 'SUCCESS ✅' || 'FAILED ❌' }}
+            Status: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && 'SUCCESS ✅' || 'FAILED ❌' }}
             Commit: ${{ github.sha }}

@@ -20,11 +20,14 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         icons: [
-          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+          // SVG with sizes "any" satisfies Chrome 93+ installability criteria.
+          // To also support iOS/Safari and maskable icons, generate PNGs with
+          // @vite-pwa/assets-generator and add 192x192 / 512x512 entries here.
+          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,ts,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,ts,css,html,svg,png,woff,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
@@ -56,10 +59,11 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) return 'react-vendor'
-          if (id.includes('node_modules/lightweight-charts')) return 'charts-vendor'
-          if (id.includes('node_modules/lucide-react')) return 'icons-vendor'
+        // Object form — the function form is deprecated in Rollup 4 / Vite 8.
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'charts-vendor': ['lightweight-charts'],
+          'icons-vendor': ['lucide-react'],
         },
       },
     },

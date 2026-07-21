@@ -21,4 +21,5 @@ charts/
 .venv/
 trading.db*
 Dockerfile
+Dockerfile.prod
 .dockerignore

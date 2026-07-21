@@ -63,4 +63,4 @@ websocket:
   ai_signal_bot:
     host: localhost              # AI signal publisher WebSocket server
     port: 8766                   # Signals, regime, backtest results
-    metrics_port: 8080           # Prometheus metrics
+    metrics_port: 9090           # Prometheus metrics

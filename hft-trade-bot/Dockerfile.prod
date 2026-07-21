@@ -1,5 +1,7 @@
 # ── HFT Trade Bot Production Dockerfile (C++) ──
-FROM gcc:14 AS builder
+# Builder and runtime use the SAME Debian release (bookworm) to avoid ABI
+# mismatches between libfmt/spdlog/yaml-cpp/boost versions across stages.
+FROM gcc:14-bookworm AS builder
 
 WORKDIR /app
 
@@ -20,14 +22,15 @@ RUN cmake -B build -DCMAKE_BUILD_TYPE=Release \
     -DUSE_CCACHE=OFF -DUSE_UNITY_BUILD=OFF \
     && cmake --build build -j$(nproc) --target hft_trade_bot
 
-# ── Runtime stage ──
-FROM debian:trixie-slim
+# ── Runtime stage — same Debian release as builder to keep ABI stable ──
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
+# Pin runtime library versions to match bookworm's -dev packages from builder stage
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libboost-system1.83.0 libboost-random1.83.0 libssl3 libspdlog1.15 \
-    libyaml-cpp0.8 libfmt10 \
+    libboost-system1.74.0 libboost-random1.74.0 libssl3 libspdlog1.11 \
+    libyaml-cpp0.7 libfmt9 wget ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appuser && useradd -r -g appuser appuser
 

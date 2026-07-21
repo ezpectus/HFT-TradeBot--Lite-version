@@ -16,7 +16,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.js'],
     pool: 'forks',
-    isolate: false,
+    isolate: true,
     exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
     server: {
       deps: {

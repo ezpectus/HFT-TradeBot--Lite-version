@@ -95,7 +95,7 @@ webUi:
     tag: ""
   service:
     type: ClusterIP
-    port: 80
+    port: 3000
   resources:
     requests:
       cpu: 100m
@@ -128,13 +128,13 @@ timescaledb:
   enabled: true
   image:
     repository: timescale/timescaledb
-    tag: latest-pg16
+    tag: pg16-ts2.17.2
   service:
     type: ClusterIP
     port: 5432
   persistence:
     enabled: true
-    storageClass: standard
+    storageClass: ""
     accessModes:
       - ReadWriteOnce
     size: 50Gi
@@ -163,7 +163,7 @@ redis:
     port: 6379
   persistence:
     enabled: true
-    storageClass: standard
+    storageClass: ""
     size: 10Gi
   resources:
     requests:
@@ -203,6 +203,7 @@ prometheus:
   persistence:
     enabled: true
     size: 20Gi
+    storageClass: ""
   resources:
     requests:
       cpu: 200m
@@ -223,7 +224,8 @@ grafana:
   persistence:
     enabled: true
     size: 5Gi
-  adminPassword: "admin"
+    storageClass: ""
+  adminPassword: ""  # Set via --set grafana.adminPassword=...
   ingress:
     enabled: true
     className: nginx

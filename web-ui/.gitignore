@@ -3,6 +3,7 @@ dist
 .vite
 coverage
 screenshots
+test-results
 .netlify
 .env
 .env.local
